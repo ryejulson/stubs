@@ -185,6 +185,20 @@
     color: var(--teal);
     white-space:nowrap;
   }
+  .stub-edit{
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    font-size: 14px;
+    padding: 2px 4px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .stub-top-right{
+    display:flex;
+    align-items:flex-start;
+    gap: 6px;
+  }
   .stub-bottom{
     display:flex;
     justify-content:space-between;
@@ -380,6 +394,15 @@
   </div>
 </div>
 
+<!-- Undo redeem sheet -->
+<div class="sheet-backdrop" id="undoBackdrop">
+  <div class="sheet">
+    <h3 id="undoTitle">Redeemed</h3>
+    <button class="btn btn-danger" id="undoConfirm">Undo redemption</button>
+    <button class="btn btn-ghost" id="undoCancel">Cancel</button>
+  </div>
+</div>
+
 <!-- Add/edit benefit sheet -->
 <div class="sheet-backdrop" id="benefitBackdrop">
   <div class="sheet">
@@ -431,6 +454,21 @@
       <input type="text" id="newCardName" placeholder="e.g. Amex Platinum">
     </div>
     <button class="btn btn-brass" id="addCardBtn">Add card</button>
+
+    <div class="section-label">Import perk data</div>
+    <div id="importPasteView">
+      <div class="field">
+        <label>Paste JSON from Claude</label>
+        <textarea id="importText" rows="6" style="width:100%;padding:11px 12px;border-radius:8px;border:1.5px solid #C7D0C4;font-family:'IBM Plex Mono',monospace;font-size:12px;"></textarea>
+      </div>
+      <button class="btn btn-primary" id="previewImportBtn">Preview import</button>
+    </div>
+    <div id="importReviewView" style="display:none;">
+      <div id="importReviewContent"></div>
+      <button class="btn btn-brass" id="applyImportBtn">Apply import</button>
+      <button class="btn btn-ghost" id="cancelImportBtn">Cancel</button>
+    </div>
+
     <button class="btn btn-ghost" id="closeSettings">Close</button>
   </div>
 </div>
@@ -583,7 +621,10 @@
               '<div class="stub-name">' + escapeHtml(b.name) + '</div>' +
               '<div class="stub-card">' + escapeHtml(cardName(b.cardId)) + ' · ' + cadenceLabel(b.cadence) + '</div>' +
             '</div>' +
-            '<div class="stub-value">' + fmtMoney(Number(b.value)||0) + '</div>' +
+            '<div class="stub-top-right">' +
+              '<div class="stub-value">' + fmtMoney(Number(b.value)||0) + '</div>' +
+              '<button class="stub-edit" data-edit-id="' + b.id + '">&#9998;</button>' +
+            '</div>' +
           '</div>' +
           '<div class="stub-bottom">' +
             '<div class="stub-cycle">' + cycleLabelFor(b.cadence, now) + '</div>' +
@@ -592,13 +633,17 @@
         '</div>' +
         (isRedeemed ? '<div class="stamp">' + escapeHtml(redemption.by) + '</div>' : '');
 
-      stub.querySelector('.stub-body').addEventListener('click', function(){
+      stub.querySelector('.stub-body').addEventListener('click', function(e){
+        if (e.target.closest('.stub-edit')) return; // handled separately
         if (isRedeemed) {
-          // tapping a redeemed stub opens quick undo via edit sheet instead
-          openBenefitSheet(b.id);
+          openUndoSheet(b.id);
         } else {
           openRedeemSheet(b.id);
         }
+      });
+      stub.querySelector('.stub-edit').addEventListener('click', function(e){
+        e.stopPropagation();
+        openBenefitSheet(b.id);
       });
       listEl.appendChild(stub);
     });
@@ -648,6 +693,30 @@
     saveData().then(render);
     render();
   }
+
+  // ---- undo redeem sheet ----
+  var undoBackdrop = document.getElementById('undoBackdrop');
+  var undoingBenefitId = null;
+  function openUndoSheet(benefitId){
+    undoingBenefitId = benefitId;
+    var b = state.benefits.find(function(x){ return x.id === benefitId; });
+    var now = new Date();
+    var key = cycleKeyFor(b.cadence, now);
+    var r = b.redemptions && b.redemptions[key];
+    document.getElementById('undoTitle').textContent = r ? ('Redeemed by ' + r.by) : 'Redeemed';
+    undoBackdrop.className = 'sheet-backdrop show';
+  }
+  document.getElementById('undoCancel').addEventListener('click', function(){ undoBackdrop.className='sheet-backdrop'; });
+  undoBackdrop.addEventListener('click', function(e){ if (e.target===undoBackdrop) undoBackdrop.className='sheet-backdrop'; });
+  document.getElementById('undoConfirm').addEventListener('click', function(){
+    var b = state.benefits.find(function(x){ return x.id === undoingBenefitId; });
+    var now = new Date();
+    var key = cycleKeyFor(b.cadence, now);
+    if (b.redemptions) delete b.redemptions[key];
+    undoBackdrop.className = 'sheet-backdrop';
+    saveData().then(render);
+    render();
+  });
 
   // ---- add/edit benefit sheet ----
   var benefitBackdrop = document.getElementById('benefitBackdrop');
@@ -763,6 +832,133 @@
     if (!name) { input.focus(); return; }
     state.cards.push({ id: uid(), name: name });
     input.value = '';
+    renderCardManageList();
+    saveData().then(render);
+    render();
+  });
+
+  // ---- import ----
+  var pendingImportDiff = null; // { newCards:[{name,benefits}], cardUpdates:[{cardId,cardName, newPerks:[...], updates:[{benefitId,name,oldCadence,newCadence,oldValue,newValue}], orphans:[{benefitId,name}]}] }
+
+  function findCardByName(name){
+    var n = name.trim().toLowerCase();
+    return state.cards.find(function(c){ return c.name.trim().toLowerCase() === n; });
+  }
+  function findBenefitByName(cardId, name){
+    var n = name.trim().toLowerCase();
+    return state.benefits.find(function(b){ return b.cardId === cardId && b.name.trim().toLowerCase() === n; });
+  }
+
+  document.getElementById('previewImportBtn').addEventListener('click', function(){
+    var raw = document.getElementById('importText').value.trim();
+    var data;
+    try { data = JSON.parse(raw); } catch(e){ alert('That doesn\'t look like valid JSON. Check the formatting and try again.'); return; }
+    if (!data || !Array.isArray(data.cards)) { alert('Expected a "cards" array in the pasted JSON.'); return; }
+
+    var diff = { newCards: [], cardUpdates: [] };
+    data.cards.forEach(function(importCard){
+      var existingCard = findCardByName(importCard.name);
+      var benefits = Array.isArray(importCard.benefits) ? importCard.benefits : [];
+      if (!existingCard) {
+        diff.newCards.push({ name: importCard.name, benefits: benefits });
+      } else {
+        var newPerks = [];
+        var updates = [];
+        var mentionedIds = {};
+        benefits.forEach(function(ib){
+          var existingBenefit = findBenefitByName(existingCard.id, ib.name);
+          if (!existingBenefit) {
+            newPerks.push(ib);
+          } else {
+            mentionedIds[existingBenefit.id] = true;
+            if (existingBenefit.cadence !== ib.cadence || Number(existingBenefit.value) !== Number(ib.value)) {
+              updates.push({ benefitId: existingBenefit.id, name: existingBenefit.name, oldCadence: existingBenefit.cadence, newCadence: ib.cadence, oldValue: existingBenefit.value, newValue: ib.value });
+            }
+          }
+        });
+        var orphans = state.benefits.filter(function(b){ return b.cardId === existingCard.id && !mentionedIds[b.id]; })
+          .map(function(b){ return { benefitId: b.id, name: b.name, keep: true }; });
+        if (newPerks.length || updates.length || orphans.length) {
+          diff.cardUpdates.push({ cardId: existingCard.id, cardName: existingCard.name, newPerks: newPerks, updates: updates, orphans: orphans });
+        }
+      }
+    });
+
+    pendingImportDiff = diff;
+    renderImportReview();
+    document.getElementById('importPasteView').style.display = 'none';
+    document.getElementById('importReviewView').style.display = 'block';
+  });
+
+  function renderImportReview(){
+    var el = document.getElementById('importReviewContent');
+    var html = '';
+    if (pendingImportDiff.newCards.length === 0 && pendingImportDiff.cardUpdates.length === 0) {
+      html = '<div class="empty">Nothing new to import — everything already matches.</div>';
+    }
+    pendingImportDiff.newCards.forEach(function(nc){
+      html += '<div style="margin-bottom:14px;"><strong>' + escapeHtml(nc.name) + '</strong> — new card, ' + nc.benefits.length + ' perk(s) will be added.</div>';
+    });
+    pendingImportDiff.cardUpdates.forEach(function(cu, cuIdx){
+      html += '<div style="margin-bottom:14px;"><strong>' + escapeHtml(cu.cardName) + '</strong>';
+      if (cu.newPerks.length) html += '<div style="font-size:13px;margin-top:4px;">+ ' + cu.newPerks.length + ' new perk(s): ' + cu.newPerks.map(function(p){ return escapeHtml(p.name); }).join(', ') + '</div>';
+      cu.updates.forEach(function(u){
+        html += '<div style="font-size:13px;margin-top:4px;">↻ ' + escapeHtml(u.name) + ': ' + cadenceLabel(u.oldCadence) + ' ' + fmtMoney(u.oldValue) + ' → ' + cadenceLabel(u.newCadence) + ' ' + fmtMoney(u.newValue) + '</div>';
+      });
+      cu.orphans.forEach(function(o, oIdx){
+        html += '<div style="font-size:13px;margin-top:6px;display:flex;justify-content:space-between;align-items:center;">' +
+          '<span>' + escapeHtml(o.name) + ' <span style="color:var(--ink-soft);">(not in import)</span></span>' +
+          '<label style="display:flex;align-items:center;gap:4px;font-size:12px;">' +
+            '<input type="checkbox" data-orphan-cu="' + cuIdx + '" data-orphan-idx="' + oIdx + '" ' + (o.keep ? 'checked' : '') + '> keep' +
+          '</label>' +
+        '</div>';
+      });
+      html += '</div>';
+    });
+    el.innerHTML = html;
+    Array.prototype.forEach.call(el.querySelectorAll('input[data-orphan-cu]'), function(cb){
+      cb.addEventListener('change', function(){
+        var cuIdx = Number(cb.getAttribute('data-orphan-cu'));
+        var oIdx = Number(cb.getAttribute('data-orphan-idx'));
+        pendingImportDiff.cardUpdates[cuIdx].orphans[oIdx].keep = cb.checked;
+      });
+    });
+  }
+
+  document.getElementById('cancelImportBtn').addEventListener('click', function(){
+    pendingImportDiff = null;
+    document.getElementById('importText').value = '';
+    document.getElementById('importPasteView').style.display = 'block';
+    document.getElementById('importReviewView').style.display = 'none';
+  });
+
+  document.getElementById('applyImportBtn').addEventListener('click', function(){
+    if (!pendingImportDiff) return;
+    pendingImportDiff.newCards.forEach(function(nc){
+      var cardId = uid();
+      state.cards.push({ id: cardId, name: nc.name });
+      nc.benefits.forEach(function(b){
+        state.benefits.push({ id: uid(), cardId: cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, redemptions: {} });
+      });
+    });
+    pendingImportDiff.cardUpdates.forEach(function(cu){
+      cu.newPerks.forEach(function(b){
+        state.benefits.push({ id: uid(), cardId: cu.cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, redemptions: {} });
+      });
+      cu.updates.forEach(function(u){
+        var b = state.benefits.find(function(x){ return x.id === u.benefitId; });
+        if (b) { b.cadence = u.newCadence; b.value = Number(u.newValue)||0; }
+      });
+      cu.orphans.forEach(function(o){
+        if (!o.keep) {
+          state.benefits = state.benefits.filter(function(x){ return x.id !== o.benefitId; });
+        }
+      });
+    });
+    pendingImportDiff = null;
+    document.getElementById('importText').value = '';
+    document.getElementById('importPasteView').style.display = 'block';
+    document.getElementById('importReviewView').style.display = 'none';
     renderCardManageList();
     saveData().then(render);
     render();
