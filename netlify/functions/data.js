@@ -22,7 +22,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const store = getStore({ name: 'stubs-data', consistency: 'strong' });
+    const store = getStore('stubs-data');
 
     if (event.httpMethod === 'GET') {
       const existing = await store.get('state', { type: 'json' });
