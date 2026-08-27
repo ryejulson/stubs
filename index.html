@@ -829,11 +829,16 @@
 
   // ---- API ----
   function loadData(){
-    return fetch(API, { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(d){
+    return fetch(API, { cache: 'no-store' }).then(function(r){
+      if (!r.ok) { throw new Error('Server returned ' + r.status); }
+      return r.json();
+    }).then(function(d){
       state = Object.assign({ people:['Person 1','Person 2'], cards:[], benefits:[], originChatUrl: '' }, d);
       if (!state.originChatUrl) {
+        // Set in memory only — do NOT auto-save here. A page load should never
+        // trigger a write; it'll get persisted naturally the next time the
+        // person actually does something (redeem, edit, import, etc.).
         state.originChatUrl = 'https://claude.ai/chat/7939444a-0221-4090-b3c3-3e8348e528aa';
-        saveData();
       }
       if (reconcileAutoSubscriptions()) {
         saveData();
@@ -844,7 +849,17 @@
     });
   }
   function saveData(){
-    return fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(state) });
+    return fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(state) }).then(function(r){
+      if (!r.ok) {
+        return r.json().catch(function(){ return {}; }).then(function(errBody){
+          var msg = errBody.error || ('Save failed with status ' + r.status);
+          alert('Could not save: ' + msg + '\n\nYour change was NOT saved to the shared ledger. Try again.');
+          console.error('Save failed:', msg);
+          throw new Error(msg);
+        });
+      }
+      return r.json();
+    });
   }
 
   // ---- render ----

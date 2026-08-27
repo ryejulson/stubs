@@ -40,6 +40,18 @@ exports.handler = async (event) => {
       } catch (e) {
         return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid JSON body' }) };
       }
+
+      const existing = await store.get('state', { type: 'json' });
+      const existingCardCount = existing && Array.isArray(existing.cards) ? existing.cards.length : 0;
+      const incomingCardCount = Array.isArray(incoming.cards) ? incoming.cards.length : 0;
+      if (existingCardCount > 0 && incomingCardCount === 0) {
+        return {
+          statusCode: 409,
+          headers,
+          body: JSON.stringify({ error: 'Refused: this write would wipe out ' + existingCardCount + ' existing card(s) with zero. If you really want to clear all data, delete cards individually in the app instead.' })
+        };
+      }
+
       await store.setJSON('state', incoming);
       return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
     }
