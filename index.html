@@ -261,15 +261,22 @@
     margin-bottom: 8px;
   }
   .status-row{
-    display:flex;
-    justify-content:space-between;
-    gap: 10px;
-    font-size: 12px;
-    padding: 4px 0;
-    color: #C9D3CC;
+    padding: 8px 0;
+    border-bottom: 1px solid #2A343A;
   }
-  .status-row .status-card{ font-weight:600; color: var(--stub); white-space:nowrap; }
-  .status-row .status-text{ text-align:right; color: #9FACA4; }
+  .status-row:last-child{ border-bottom: none; }
+  .status-row .status-card{
+    font-size: 12px;
+    font-weight:600;
+    color: var(--stub);
+    margin-bottom: 3px;
+  }
+  .status-row .status-text{
+    font-size: 12px;
+    color: #9FACA4;
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
 
   .list-header-row{
     display:flex;
@@ -512,16 +519,6 @@
   </div>
 
   <div class="rail" id="cardRail"></div>
-
-  <div class="statuses-block" id="statusesBlock" style="display:none;">
-    <div class="statuses-title">Elite status on file</div>
-    <div id="statusesList"></div>
-  </div>
-
-  <div class="statuses-block" id="multipliersBlock" style="display:none;">
-    <div class="statuses-title">Points multipliers</div>
-    <div id="multipliersList"></div>
-  </div>
 
   <div class="list-header-row">
     <div class="section-label" id="listLabel">All perks</div>
@@ -1033,27 +1030,6 @@
   }
 
   // ---- statuses block ----
-  function renderStatuses(){
-    var block = document.getElementById('statusesBlock');
-    var list = document.getElementById('statusesList');
-    var withStatuses = state.cards.filter(function(c){ return c.statuses && c.statuses.trim(); });
-    if (withStatuses.length === 0) { block.style.display = 'none'; return; }
-    block.style.display = 'block';
-    list.innerHTML = withStatuses.map(function(c){
-      return '<div class="status-row"><span class="status-card">' + escapeHtml(c.name) + '</span><span class="status-text">' + escapeHtml(c.statuses) + '</span></div>';
-    }).join('');
-  }
-  function renderMultipliers(){
-    var block = document.getElementById('multipliersBlock');
-    var list = document.getElementById('multipliersList');
-    var withMult = state.cards.filter(function(c){ return c.multipliers && c.multipliers.trim(); });
-    if (withMult.length === 0) { block.style.display = 'none'; return; }
-    block.style.display = 'block';
-    list.innerHTML = withMult.map(function(c){
-      return '<div class="status-row"><span class="status-card">' + escapeHtml(c.name) + '</span><span class="status-text">' + escapeHtml(c.multipliers) + '</span></div>';
-    }).join('');
-  }
-
   // ---- card drawer ----
   var drawerBackdrop = document.getElementById('drawerBackdrop');
   function renderDrawer(){
@@ -1194,8 +1170,6 @@
   function render(){
     renderRail();
     renderSummary();
-    renderStatuses();
-    renderMultipliers();
     renderList();
     renderShrugCount();
     renderOriginChatFooter();
