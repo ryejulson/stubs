@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Stubs">
+<meta name="theme-color" content="#12181C">
+<title>Stubs — Shared Perk Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #12181C;
+    --bg-2: #1B2328;
+    --stub: #E7EFE6;
+    --stub-2: #DCE6DA;
+    --ink: #16201B;
+    --ink-soft: #5B6961;
+    --brass: #C9A227;
+    --brass-soft: #E2C463;
+    --teal: #2F6F62;
+    --teal-soft: #D8E6E1;
+    --rust: #B4482F;
+    --rust-soft: #F0DAD1;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);}
+  body{
+    font-family:'Inter',-apple-system,system-ui,sans-serif;
+    color: var(--stub);
+    min-height:100vh;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+    background:
+      radial-gradient(ellipse at top, rgba(255,255,255,0.05), transparent 55%),
+      var(--bg);
+  }
+  .wrap{ max-width: 520px; margin: 0 auto; padding: 24px 16px 90px; }
+
+  .masthead{ display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+  .wordmark{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size: 26px;
+    letter-spacing: 1px;
+    color: var(--stub);
+  }
+  .wordmark span{ color: var(--brass); }
+  .tagline{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #7C8880;
+    margin-top: 2px;
+  }
+  .gear{
+    background: var(--bg-2);
+    border: 1px solid #2A343A;
+    color: var(--stub);
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    font-size: 18px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+
+  .summary{
+    background: linear-gradient(135deg, var(--teal), #234E45);
+    border-radius: 14px;
+    padding: 16px 18px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom: 18px;
+  }
+  .summary .col{ text-align:left; }
+  .summary .col:last-child{ text-align:right; }
+  .summary .num{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size: 22px;
+    color: #fff;
+  }
+  .summary .lbl{
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.7);
+    margin-top:2px;
+  }
+
+  .rail{
+    display:flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-bottom: 18px;
+    scrollbar-width: none;
+  }
+  .rail::-webkit-scrollbar{ display:none; }
+  .chip{
+    flex: 0 0 auto;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size: 13px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: var(--bg-2);
+    border: 1px solid #2A343A;
+    color: #B9C3BC;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .chip.active{ background: var(--brass); border-color: var(--brass); color: #1B1503; }
+  .chip.add{ color: var(--brass); border-style:dashed; }
+
+  .section-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #7C8880;
+    margin: 22px 0 10px 2px;
+  }
+
+  .stub{
+    position:relative;
+    background: var(--stub);
+    color: var(--ink);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    display:flex;
+    overflow:hidden;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.28);
+  }
+  .stub-notch-col{
+    width: 14px;
+    background: var(--bg);
+    background-image: radial-gradient(circle, var(--bg) 4px, transparent 4.5px);
+    background-size: 14px 16px;
+    background-position: center;
+    flex: 0 0 auto;
+    position: relative;
+  }
+  .stub-notch-col::before, .stub-notch-col::after{
+    content:"";
+    position:absolute;
+    left:0; right:0;
+    height: 8px;
+    background: var(--bg);
+    border-radius: 0 0 8px 8px;
+  }
+  .stub-notch-col::before{ top:-1px; }
+  .stub-notch-col::after{ bottom:-1px; transform: rotate(180deg); }
+  .stub-body{
+    flex:1;
+    padding: 14px 14px 14px 12px;
+    border-left: 1px dashed #B9C3B6;
+    cursor:pointer;
+  }
+  .stub-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap: 8px;
+  }
+  .stub-name{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size: 15px;
+    line-height:1.25;
+  }
+  .stub-card{
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  .stub-value{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size: 15px;
+    color: var(--teal);
+    white-space:nowrap;
+  }
+  .stub-bottom{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top: 10px;
+  }
+  .stub-cycle{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    background: var(--stub-2);
+    padding: 3px 8px;
+    border-radius: 5px;
+  }
+  .stub-status{
+    font-family:'Space Grotesk', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  .stub-status.open{ background: var(--rust-soft); color: var(--rust); }
+  .stub-status.redeemed{ background: var(--teal-soft); color: var(--teal); }
+
+  .stamp{
+    position:absolute;
+    right: 14px;
+    top: 14px;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size: 11px;
+    color: var(--brass);
+    border: 2px solid var(--brass);
+    border-radius: 6px;
+    padding: 3px 8px;
+    transform: rotate(8deg);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.9;
+    pointer-events:none;
+  }
+
+  .empty{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: #7C8880;
+    text-align:center;
+    padding: 30px 20px;
+    border: 1px dashed #2A343A;
+    border-radius: 12px;
+  }
+
+  .fab{
+    position: fixed;
+    right: 20px;
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--brass);
+    color: #1B1503;
+    font-size: 28px;
+    font-weight: 700;
+    border: none;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.4);
+    cursor:pointer;
+    z-index: 5;
+  }
+
+  .sheet-backdrop{
+    position:fixed; inset:0;
+    background: rgba(0,0,0,0.55);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index: 20;
+  }
+  .sheet-backdrop.show{ display:flex; }
+  .sheet{
+    background: var(--stub);
+    color: var(--ink);
+    width: 100%;
+    max-width: 520px;
+    border-radius: 18px 18px 0 0;
+    padding: 20px 20px calc(26px + env(safe-area-inset-bottom));
+    max-height: 85vh;
+    overflow-y: auto;
+    font-family:'Inter', sans-serif;
+  }
+  .sheet h3{
+    font-family:'Space Grotesk', sans-serif;
+    margin: 0 0 16px;
+    font-size: 18px;
+  }
+  .field{ margin-bottom: 14px; }
+  .field label{
+    display:block;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+    font-weight: 600;
+  }
+  .field input, .field select{
+    width:100%;
+    padding: 11px 12px;
+    border-radius: 8px;
+    border: 1.5px solid #C7D0C4;
+    background: #fff;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--ink);
+  }
+  .row2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn{
+    width:100%;
+    padding: 13px;
+    border-radius: 9px;
+    border:none;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor:pointer;
+    margin-top: 6px;
+  }
+  .btn-primary{ background: var(--teal); color: #fff; }
+  .btn-brass{ background: var(--brass); color: #1B1503; }
+  .btn-ghost{ background: none; color: var(--ink-soft); }
+  .btn-danger{ background: var(--rust-soft); color: var(--rust); }
+  .who-row{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .who-btn{
+    padding: 14px 8px;
+    border-radius: 9px;
+    border: 1.5px solid #C7D0C4;
+    background: #fff;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size: 14px;
+    cursor:pointer;
+  }
+  .list-manage{ margin-bottom: 16px; }
+  .list-manage .item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 10px 0;
+    border-bottom: 1px solid #D6DFD3;
+    font-size: 14px;
+  }
+  .list-manage .item button{
+    background:none; border:none; color: var(--rust); font-size:12px; cursor:pointer;
+    font-family:'Inter', sans-serif;
+  }
+  .loading{ text-align:center; padding: 60px 20px; color:#7C8880; font-family:'IBM Plex Mono',monospace; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <div>
+      <div class="wordmark">STUB<span>S</span></div>
+      <div class="tagline">shared perk ledger</div>
+    </div>
+    <button class="gear" id="openSettings">&#9881;</button>
+  </div>
+
+  <div class="summary">
+    <div class="col">
+      <div class="num" id="capturedNum">$0</div>
+      <div class="lbl">Captured this year</div>
+    </div>
+    <div class="col">
+      <div class="num" id="possibleNum">$0</div>
+      <div class="lbl">Possible so far</div>
+    </div>
+  </div>
+
+  <div class="rail" id="cardRail"></div>
+
+  <div class="section-label" id="listLabel">All perks</div>
+  <div id="stubList"><div class="loading">Loading ledger…</div></div>
+</div>
+
+<button class="fab" id="openAddBenefit">+</button>
+
+<!-- Redeem sheet -->
+<div class="sheet-backdrop" id="redeemBackdrop">
+  <div class="sheet">
+    <h3 id="redeemTitle">Mark redeemed</h3>
+    <div class="who-row" id="whoRow"></div>
+    <button class="btn btn-ghost" id="redeemCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- Add/edit benefit sheet -->
+<div class="sheet-backdrop" id="benefitBackdrop">
+  <div class="sheet">
+    <h3 id="benefitSheetTitle">Add a perk</h3>
+    <div class="field">
+      <label>Card</label>
+      <select id="benefitCard"></select>
+    </div>
+    <div class="field">
+      <label>Perk name</label>
+      <input type="text" id="benefitName" placeholder="e.g. Airport lounge credit">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Cadence</label>
+        <select id="benefitCadence">
+          <option value="monthly">Monthly</option>
+          <option value="quarterly">Quarterly</option>
+          <option value="semiannual">Semi-annual</option>
+          <option value="annual">Annual</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Value ($)</label>
+        <input type="number" id="benefitValue" placeholder="0" inputmode="decimal">
+      </div>
+    </div>
+    <button class="btn btn-brass" id="saveBenefit">Save perk</button>
+    <button class="btn btn-danger" id="deleteBenefit" style="display:none;">Delete perk</button>
+    <button class="btn btn-ghost" id="cancelBenefit">Cancel</button>
+  </div>
+</div>
+
+<!-- Settings sheet -->
+<div class="sheet-backdrop" id="settingsBackdrop">
+  <div class="sheet">
+    <h3>Settings</h3>
+    <div class="section-label" style="margin-top:0;">People</div>
+    <div class="row2">
+      <div class="field"><label>Person 1</label><input type="text" id="person1Name"></div>
+      <div class="field"><label>Person 2</label><input type="text" id="person2Name"></div>
+    </div>
+    <button class="btn btn-primary" id="savePeople">Save names</button>
+
+    <div class="section-label">Cards on file</div>
+    <div class="list-manage" id="cardManageList"></div>
+    <div class="field">
+      <label>New card name</label>
+      <input type="text" id="newCardName" placeholder="e.g. Amex Platinum">
+    </div>
+    <button class="btn btn-brass" id="addCardBtn">Add card</button>
+    <button class="btn btn-ghost" id="closeSettings">Close</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var API = '/.netlify/functions/data';
+  var state = { people:['Person 1','Person 2'], cards:[], benefits:[] };
+  var activeCardFilter = 'all';
+  var editingBenefitId = null;
+  var redeemingBenefitId = null;
+
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  function fmtMoney(n){
+    return '$' + Math.round(n).toLocaleString();
+  }
+
+  function cadenceLabel(c){
+    return { monthly:'Monthly', quarterly:'Quarterly', semiannual:'Semi-annual', annual:'Annual' }[c] || c;
+  }
+
+  // ---- cycle key logic ----
+  function cycleKeyFor(cadence, date){
+    var y = date.getFullYear();
+    var m = date.getMonth(); // 0-indexed
+    if (cadence === 'monthly') return y + '-M' + (m+1);
+    if (cadence === 'quarterly') return y + '-Q' + (Math.floor(m/3)+1);
+    if (cadence === 'semiannual') return y + '-H' + (m < 6 ? 1 : 2);
+    if (cadence === 'annual') return y + '-Y';
+    return y + '-' + m;
+  }
+  function cycleLabelFor(cadence, date){
+    var y = date.getFullYear();
+    var m = date.getMonth();
+    if (cadence === 'monthly') return date.toLocaleString('en-US',{month:'short'}) + ' ' + y;
+    if (cadence === 'quarterly') return 'Q' + (Math.floor(m/3)+1) + ' ' + y;
+    if (cadence === 'semiannual') return (m<6?'H1':'H2') + ' ' + y;
+    if (cadence === 'annual') return '' + y;
+    return '';
+  }
+  function elapsedCyclesThisYear(cadence, date){
+    var m = date.getMonth();
+    if (cadence === 'monthly') return m + 1;
+    if (cadence === 'quarterly') return Math.floor(m/3) + 1;
+    if (cadence === 'semiannual') return (m < 6 ? 1 : 2);
+    if (cadence === 'annual') return 1;
+    return 1;
+  }
+
+  // ---- API ----
+  function loadData(){
+    return fetch(API).then(function(r){ return r.json(); }).then(function(d){
+      state = Object.assign({ people:['Person 1','Person 2'], cards:[], benefits:[] }, d);
+      render();
+    }).catch(function(){
+      document.getElementById('stubList').innerHTML = '<div class="empty">Could not reach the shared ledger. Check your connection and reload.</div>';
+    });
+  }
+  function saveData(){
+    return fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(state) });
+  }
+
+  // ---- render ----
+  function cardName(id){
+    var c = state.cards.find(function(c){ return c.id === id; });
+    return c ? c.name : 'Unknown card';
+  }
+
+  function renderRail(){
+    var rail = document.getElementById('cardRail');
+    rail.innerHTML = '';
+    var allChip = document.createElement('div');
+    allChip.className = 'chip' + (activeCardFilter === 'all' ? ' active' : '');
+    allChip.textContent = 'All';
+    allChip.addEventListener('click', function(){ activeCardFilter = 'all'; render(); });
+    rail.appendChild(allChip);
+
+    state.cards.forEach(function(c){
+      var chip = document.createElement('div');
+      chip.className = 'chip' + (activeCardFilter === c.id ? ' active' : '');
+      chip.textContent = c.name;
+      chip.addEventListener('click', function(){ activeCardFilter = c.id; render(); });
+      rail.appendChild(chip);
+    });
+
+    var addChip = document.createElement('div');
+    addChip.className = 'chip add';
+    addChip.textContent = '+ Card';
+    addChip.addEventListener('click', openSettings);
+    rail.appendChild(addChip);
+  }
+
+  function renderSummary(){
+    var now = new Date();
+    var captured = 0, possible = 0;
+    state.benefits.forEach(function(b){
+      var elapsed = elapsedCyclesThisYear(b.cadence, now);
+      possible += elapsed * (Number(b.value) || 0);
+      for (var i = 1; i <= elapsed; i++){
+        // build a date representative of each elapsed cycle to get its key
+        var probeDate = cycleProbeDate(b.cadence, now.getFullYear(), i);
+        var key = cycleKeyFor(b.cadence, probeDate);
+        if (b.redemptions && b.redemptions[key] && b.redemptions[key].redeemed) {
+          captured += Number(b.value) || 0;
+        }
+      }
+    });
+    document.getElementById('capturedNum').textContent = fmtMoney(captured);
+    document.getElementById('possibleNum').textContent = fmtMoney(possible);
+  }
+  function cycleProbeDate(cadence, year, cycleIndex){
+    if (cadence === 'monthly') return new Date(year, cycleIndex-1, 15);
+    if (cadence === 'quarterly') return new Date(year, (cycleIndex-1)*3, 15);
+    if (cadence === 'semiannual') return new Date(year, (cycleIndex-1)*6, 15);
+    return new Date(year, 0, 15);
+  }
+
+  function renderList(){
+    var listEl = document.getElementById('stubList');
+    var label = document.getElementById('listLabel');
+    var now = new Date();
+    var benefits = state.benefits.filter(function(b){
+      return activeCardFilter === 'all' || b.cardId === activeCardFilter;
+    });
+    label.textContent = activeCardFilter === 'all' ? 'All perks' : cardName(activeCardFilter) + ' perks';
+
+    if (state.cards.length === 0) {
+      listEl.innerHTML = '<div class="empty">No cards yet. Tap the gear icon to add your first card.</div>';
+      return;
+    }
+    if (benefits.length === 0) {
+      listEl.innerHTML = '<div class="empty">No perks tracked yet. Tap + to add one.</div>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+    benefits.forEach(function(b){
+      var key = cycleKeyFor(b.cadence, now);
+      var redemption = b.redemptions && b.redemptions[key];
+      var isRedeemed = !!(redemption && redemption.redeemed);
+
+      var stub = document.createElement('div');
+      stub.className = 'stub';
+      stub.innerHTML =
+        '<div class="stub-notch-col"></div>' +
+        '<div class="stub-body">' +
+          '<div class="stub-top">' +
+            '<div>' +
+              '<div class="stub-name">' + escapeHtml(b.name) + '</div>' +
+              '<div class="stub-card">' + escapeHtml(cardName(b.cardId)) + ' · ' + cadenceLabel(b.cadence) + '</div>' +
+            '</div>' +
+            '<div class="stub-value">' + fmtMoney(Number(b.value)||0) + '</div>' +
+          '</div>' +
+          '<div class="stub-bottom">' +
+            '<div class="stub-cycle">' + cycleLabelFor(b.cadence, now) + '</div>' +
+            '<div class="stub-status ' + (isRedeemed?'redeemed':'open') + '">' + (isRedeemed ? 'Redeemed' : 'Open') + '</div>' +
+          '</div>' +
+        '</div>' +
+        (isRedeemed ? '<div class="stamp">' + escapeHtml(redemption.by) + '</div>' : '');
+
+      stub.querySelector('.stub-body').addEventListener('click', function(){
+        if (isRedeemed) {
+          // tapping a redeemed stub opens quick undo via edit sheet instead
+          openBenefitSheet(b.id);
+        } else {
+          openRedeemSheet(b.id);
+        }
+      });
+      listEl.appendChild(stub);
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function render(){
+    renderRail();
+    renderSummary();
+    renderList();
+  }
+
+  // ---- redeem sheet ----
+  var redeemBackdrop = document.getElementById('redeemBackdrop');
+  var whoRow = document.getElementById('whoRow');
+  function openRedeemSheet(benefitId){
+    redeemingBenefitId = benefitId;
+    var b = state.benefits.find(function(x){ return x.id === benefitId; });
+    document.getElementById('redeemTitle').textContent = 'Who redeemed "' + b.name + '"?';
+    whoRow.innerHTML = '';
+    state.people.forEach(function(p){
+      var btn = document.createElement('button');
+      btn.className = 'who-btn';
+      btn.textContent = p;
+      btn.addEventListener('click', function(){ markRedeemed(benefitId, p); });
+      whoRow.appendChild(btn);
+    });
+    redeemBackdrop.className = 'sheet-backdrop show';
+  }
+  document.getElementById('redeemCancel').addEventListener('click', function(){
+    redeemBackdrop.className = 'sheet-backdrop';
+  });
+  redeemBackdrop.addEventListener('click', function(e){ if (e.target === redeemBackdrop) redeemBackdrop.className='sheet-backdrop'; });
+
+  function markRedeemed(benefitId, who){
+    var b = state.benefits.find(function(x){ return x.id === benefitId; });
+    var now = new Date();
+    var key = cycleKeyFor(b.cadence, now);
+    if (!b.redemptions) b.redemptions = {};
+    b.redemptions[key] = { redeemed:true, by: who, date: now.toISOString() };
+    redeemBackdrop.className = 'sheet-backdrop';
+    saveData().then(render);
+    render();
+  }
+
+  // ---- add/edit benefit sheet ----
+  var benefitBackdrop = document.getElementById('benefitBackdrop');
+  function populateCardSelect(){
+    var sel = document.getElementById('benefitCard');
+    sel.innerHTML = '';
+    state.cards.forEach(function(c){
+      var opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+  }
+  function openBenefitSheet(benefitId){
+    if (state.cards.length === 0) { openSettings(); return; }
+    populateCardSelect();
+    editingBenefitId = benefitId || null;
+    var deleteBtn = document.getElementById('deleteBenefit');
+    if (benefitId) {
+      var b = state.benefits.find(function(x){ return x.id === benefitId; });
+      document.getElementById('benefitSheetTitle').textContent = 'Edit perk';
+      document.getElementById('benefitCard').value = b.cardId;
+      document.getElementById('benefitName').value = b.name;
+      document.getElementById('benefitCadence').value = b.cadence;
+      document.getElementById('benefitValue').value = b.value;
+      deleteBtn.style.display = 'block';
+    } else {
+      document.getElementById('benefitSheetTitle').textContent = 'Add a perk';
+      document.getElementById('benefitCard').value = activeCardFilter !== 'all' ? activeCardFilter : state.cards[0].id;
+      document.getElementById('benefitName').value = '';
+      document.getElementById('benefitCadence').value = 'quarterly';
+      document.getElementById('benefitValue').value = '';
+      deleteBtn.style.display = 'none';
+    }
+    benefitBackdrop.className = 'sheet-backdrop show';
+  }
+  document.getElementById('openAddBenefit').addEventListener('click', function(){ openBenefitSheet(null); });
+  document.getElementById('cancelBenefit').addEventListener('click', function(){ benefitBackdrop.className='sheet-backdrop'; });
+  benefitBackdrop.addEventListener('click', function(e){ if (e.target===benefitBackdrop) benefitBackdrop.className='sheet-backdrop'; });
+
+  document.getElementById('saveBenefit').addEventListener('click', function(){
+    var name = document.getElementById('benefitName').value.trim();
+    if (!name) { document.getElementById('benefitName').focus(); return; }
+    var cardId = document.getElementById('benefitCard').value;
+    var cadence = document.getElementById('benefitCadence').value;
+    var value = Number(document.getElementById('benefitValue').value) || 0;
+
+    if (editingBenefitId) {
+      var b = state.benefits.find(function(x){ return x.id === editingBenefitId; });
+      b.name = name; b.cardId = cardId; b.cadence = cadence; b.value = value;
+    } else {
+      state.benefits.push({ id: uid(), cardId: cardId, name: name, cadence: cadence, value: value, redemptions: {} });
+    }
+    benefitBackdrop.className = 'sheet-backdrop';
+    saveData().then(render);
+    render();
+  });
+  document.getElementById('deleteBenefit').addEventListener('click', function(){
+    state.benefits = state.benefits.filter(function(x){ return x.id !== editingBenefitId; });
+    benefitBackdrop.className = 'sheet-backdrop';
+    saveData().then(render);
+    render();
+  });
+
+  // ---- settings sheet ----
+  var settingsBackdrop = document.getElementById('settingsBackdrop');
+  function openSettings(){
+    document.getElementById('person1Name').value = state.people[0] || 'Person 1';
+    document.getElementById('person2Name').value = state.people[1] || 'Person 2';
+    renderCardManageList();
+    settingsBackdrop.className = 'sheet-backdrop show';
+  }
+  document.getElementById('openSettings').addEventListener('click', openSettings);
+  document.getElementById('closeSettings').addEventListener('click', function(){ settingsBackdrop.className='sheet-backdrop'; });
+  settingsBackdrop.addEventListener('click', function(e){ if (e.target===settingsBackdrop) settingsBackdrop.className='sheet-backdrop'; });
+
+  document.getElementById('savePeople').addEventListener('click', function(){
+    state.people = [
+      document.getElementById('person1Name').value.trim() || 'Person 1',
+      document.getElementById('person2Name').value.trim() || 'Person 2'
+    ];
+    saveData().then(render);
+    render();
+  });
+
+  function renderCardManageList(){
+    var list = document.getElementById('cardManageList');
+    list.innerHTML = '';
+    if (state.cards.length === 0) {
+      list.innerHTML = '<div class="empty" style="padding:16px;">No cards yet.</div>';
+      return;
+    }
+    state.cards.forEach(function(c){
+      var row = document.createElement('div');
+      row.className = 'item';
+      row.innerHTML = '<span>' + escapeHtml(c.name) + '</span>';
+      var del = document.createElement('button');
+      del.textContent = 'Remove';
+      del.addEventListener('click', function(){
+        state.cards = state.cards.filter(function(x){ return x.id !== c.id; });
+        state.benefits = state.benefits.filter(function(b){ return b.cardId !== c.id; });
+        if (activeCardFilter === c.id) activeCardFilter = 'all';
+        renderCardManageList();
+        saveData().then(render);
+        render();
+      });
+      row.appendChild(del);
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('addCardBtn').addEventListener('click', function(){
+    var input = document.getElementById('newCardName');
+    var name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    state.cards.push({ id: uid(), name: name });
+    input.value = '';
+    renderCardManageList();
+    saveData().then(render);
+    render();
+  });
+
+  loadData();
+})();
+</script>
+</body>
+</html>
