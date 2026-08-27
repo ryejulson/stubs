@@ -311,6 +311,53 @@
     color: #fff;
     z-index: 1;
   }
+  .drawer-backdrop{
+    position:fixed; inset:0;
+    background: rgba(0,0,0,0.55);
+    display:none;
+    z-index: 25;
+  }
+  .drawer-backdrop.show{ display:block; }
+  .drawer{
+    position:absolute;
+    left:0; top:0; bottom:0;
+    width: 78%;
+    max-width: 300px;
+    background: var(--bg-2);
+    padding: calc(20px + env(safe-area-inset-top)) 18px 20px;
+    box-shadow: 6px 0 24px rgba(0,0,0,0.4);
+  }
+  .drawer-title{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size: 18px;
+    color: var(--stub);
+    margin-bottom: 14px;
+  }
+  .drawer-card-item{
+    font-family:'Inter', sans-serif;
+    font-size: 14px;
+    color: #C9D3CC;
+    padding: 12px 10px;
+    border-radius: 8px;
+    cursor:pointer;
+    margin-bottom: 4px;
+  }
+  .drawer-card-item:active{ background: rgba(255,255,255,0.06); }
+  .detail-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--brass);
+    margin: 14px 0 6px;
+  }
+  .detail-text{
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink);
+    white-space: pre-wrap;
+  }
   .empty{
     font-family:'IBM Plex Mono', monospace;
     font-size: 12px;
@@ -443,9 +490,12 @@
 <body>
 <div class="wrap">
   <div class="masthead">
-    <div>
-      <div class="wordmark">STUB<span>S</span></div>
-      <div class="tagline">shared perk ledger</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="gear" id="openCardDrawer">&#9776;</button>
+      <div>
+        <div class="wordmark">STUB<span>S</span></div>
+        <div class="tagline">shared perk ledger</div>
+      </div>
     </div>
     <button class="gear" id="openSettings">&#9881;</button>
   </div>
@@ -485,6 +535,44 @@
 </div>
 
 <button class="fab" id="openAddBenefit">+</button>
+
+<!-- Card drawer -->
+<div class="drawer-backdrop" id="drawerBackdrop">
+  <div class="drawer">
+    <div class="drawer-title">Cards</div>
+    <div id="drawerCardList"></div>
+    <button class="btn btn-ghost" id="closeDrawer">Close</button>
+  </div>
+</div>
+
+<!-- Card detail sheet -->
+<div class="sheet-backdrop" id="cardDetailBackdrop">
+  <div class="sheet">
+    <h3 id="cardDetailTitle">Card</h3>
+    <div id="cardDetailStatus" style="display:none;">
+      <div class="detail-label">Elite status on file</div>
+      <div id="cardDetailStatusText" class="detail-text"></div>
+    </div>
+    <div id="cardDetailMultipliers" style="display:none;">
+      <div class="detail-label">Points multipliers</div>
+      <div id="cardDetailMultipliersText" class="detail-text"></div>
+    </div>
+    <div id="cardDetailNotesView">
+      <div class="detail-label">Reference notes &amp; fine print</div>
+      <div id="cardDetailNotesText" class="detail-text"></div>
+    </div>
+    <div id="cardDetailNotesEdit" style="display:none;">
+      <div class="field">
+        <label>Reference notes (protections, insurance, status perks, etc.)</label>
+        <textarea id="cardDetailNotesInput" rows="10" style="width:100%;padding:11px 12px;border-radius:8px;border:1.5px solid #C7D0C4;font-family:inherit;font-size:13px;"></textarea>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="editCardNotes">Edit notes</button>
+    <button class="btn btn-brass" id="saveCardNotes" style="display:none;">Save notes</button>
+    <button class="btn btn-ghost" id="viewCardPerks">View this card's perks</button>
+    <button class="btn btn-ghost" id="closeCardDetail">Close</button>
+  </div>
+</div>
 
 <!-- Shrug pile sheet -->
 <div class="sheet-backdrop" id="shrugBackdrop">
@@ -552,6 +640,10 @@
         <option value="calendar">Calendar (Jan–Dec, standard quarters)</option>
         <option value="anniversary">Card anniversary (needs opened date set)</option>
       </select>
+    </div>
+    <div class="field" style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="benefitAutoSubscribed" style="width:auto;">
+      <label style="margin:0;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500;" for="benefitAutoSubscribed">I'm subscribed to this ongoing — auto-mark it redeemed each cycle, no need to log it manually</label>
     </div>
     <button class="btn btn-brass" id="saveBenefit">Save perk</button>
     <button class="btn btn-danger" id="deleteBenefit" style="display:none;">Delete perk</button>
@@ -714,12 +806,35 @@
     return 1;
   }
 
+  // ---- ongoing subscriptions ----
+  // For any benefit marked "autoSubscribed", make sure the current cycle already
+  // shows as fully redeemed, so the person never has to log it by hand. Runs once
+  // per page load. If someone explicitly undoes a redemption mid-session, it's
+  // respected until the next reload (or the next cycle begins).
+  function reconcileAutoSubscriptions(){
+    var now = new Date();
+    var changed = false;
+    state.benefits.forEach(function(b){
+      if (!b.autoSubscribed) return;
+      var info = getCycleInfo(b, now);
+      if (!b.redemptions) b.redemptions = {};
+      if (!b.redemptions[info.key]) {
+        b.redemptions[info.key] = { amount: Number(b.value) || 0, by: 'Auto', date: now.toISOString(), auto: true };
+        changed = true;
+      }
+    });
+    return changed;
+  }
+
   // ---- API ----
   function loadData(){
     return fetch(API).then(function(r){ return r.json(); }).then(function(d){
       state = Object.assign({ people:['Person 1','Person 2'], cards:[], benefits:[], originChatUrl: '' }, d);
       if (!state.originChatUrl) {
         state.originChatUrl = 'https://claude.ai/chat/7939444a-0221-4090-b3c3-3e8348e528aa';
+        saveData();
+      }
+      if (reconcileAutoSubscriptions()) {
         saveData();
       }
       render();
@@ -838,7 +953,7 @@
           '<div class="stub-top">' +
             '<div>' +
               '<div class="stub-name">' + escapeHtml(b.name) + '</div>' +
-              '<div class="stub-card">' + escapeHtml(cardName(b.cardId)) + ' \u00b7 ' + cadenceLabel(b.cadence) + (b.cycleBasis === 'anniversary' ? ' \u00b7 card yr' : '') + '</div>' +
+              '<div class="stub-card">' + escapeHtml(cardName(b.cardId)) + ' \u00b7 ' + cadenceLabel(b.cadence) + (b.cycleBasis === 'anniversary' ? ' \u00b7 card yr' : '') + (b.autoSubscribed ? ' \u00b7 subscribed' : '') + '</div>' +
             '</div>' +
             '<div class="stub-top-right">' +
               '<div class="stub-value">' + valueText + '</div>' +
@@ -938,6 +1053,90 @@
       return '<div class="status-row"><span class="status-card">' + escapeHtml(c.name) + '</span><span class="status-text">' + escapeHtml(c.multipliers) + '</span></div>';
     }).join('');
   }
+
+  // ---- card drawer ----
+  var drawerBackdrop = document.getElementById('drawerBackdrop');
+  function renderDrawer(){
+    var list = document.getElementById('drawerCardList');
+    if (state.cards.length === 0) {
+      list.innerHTML = '<div class="empty" style="padding:14px;">No cards yet.</div>';
+      return;
+    }
+    list.innerHTML = '';
+    state.cards.forEach(function(c){
+      var row = document.createElement('div');
+      row.className = 'drawer-card-item';
+      row.textContent = c.name;
+      row.addEventListener('click', function(){
+        drawerBackdrop.className = 'drawer-backdrop';
+        openCardDetail(c.id);
+      });
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('openCardDrawer').addEventListener('click', function(){
+    renderDrawer();
+    drawerBackdrop.className = 'drawer-backdrop show';
+  });
+  document.getElementById('closeDrawer').addEventListener('click', function(){ drawerBackdrop.className = 'drawer-backdrop'; });
+  drawerBackdrop.addEventListener('click', function(e){ if (e.target === drawerBackdrop) drawerBackdrop.className = 'drawer-backdrop'; });
+
+  // ---- card detail sheet ----
+  var cardDetailBackdrop = document.getElementById('cardDetailBackdrop');
+  var detailCardId = null;
+  function openCardDetail(cardId){
+    detailCardId = cardId;
+    var c = state.cards.find(function(x){ return x.id === cardId; });
+    if (!c) return;
+    document.getElementById('cardDetailTitle').textContent = c.name;
+
+    var statusBlock = document.getElementById('cardDetailStatus');
+    if (c.statuses && c.statuses.trim()) {
+      statusBlock.style.display = 'block';
+      document.getElementById('cardDetailStatusText').textContent = c.statuses;
+    } else {
+      statusBlock.style.display = 'none';
+    }
+
+    var multBlock = document.getElementById('cardDetailMultipliers');
+    if (c.multipliers && c.multipliers.trim()) {
+      multBlock.style.display = 'block';
+      document.getElementById('cardDetailMultipliersText').textContent = c.multipliers;
+    } else {
+      multBlock.style.display = 'none';
+    }
+
+    document.getElementById('cardDetailNotesText').textContent = (c.notes && c.notes.trim()) ? c.notes : 'No reference notes yet. Tap "Edit notes" to add protections, insurance, elite-status perks, or other fine print.';
+    document.getElementById('cardDetailNotesView').style.display = 'block';
+    document.getElementById('cardDetailNotesEdit').style.display = 'none';
+    document.getElementById('editCardNotes').style.display = 'block';
+    document.getElementById('saveCardNotes').style.display = 'none';
+
+    cardDetailBackdrop.className = 'sheet-backdrop show';
+  }
+  document.getElementById('editCardNotes').addEventListener('click', function(){
+    var c = state.cards.find(function(x){ return x.id === detailCardId; });
+    document.getElementById('cardDetailNotesInput').value = (c && c.notes) || '';
+    document.getElementById('cardDetailNotesView').style.display = 'none';
+    document.getElementById('cardDetailNotesEdit').style.display = 'block';
+    document.getElementById('editCardNotes').style.display = 'none';
+    document.getElementById('saveCardNotes').style.display = 'block';
+  });
+  document.getElementById('saveCardNotes').addEventListener('click', function(){
+    var c = state.cards.find(function(x){ return x.id === detailCardId; });
+    if (c) {
+      c.notes = document.getElementById('cardDetailNotesInput').value.trim();
+      saveData().then(render);
+    }
+    openCardDetail(detailCardId);
+  });
+  document.getElementById('viewCardPerks').addEventListener('click', function(){
+    activeCardFilter = detailCardId;
+    cardDetailBackdrop.className = 'sheet-backdrop';
+    render();
+  });
+  document.getElementById('closeCardDetail').addEventListener('click', function(){ cardDetailBackdrop.className = 'sheet-backdrop'; });
+  cardDetailBackdrop.addEventListener('click', function(e){ if (e.target === cardDetailBackdrop) cardDetailBackdrop.className = 'sheet-backdrop'; });
 
   // ---- shrug pile sheet ----
   var shrugBackdrop = document.getElementById('shrugBackdrop');
@@ -1102,6 +1301,7 @@
       document.getElementById('benefitCadence').value = b.cadence;
       document.getElementById('benefitValue').value = b.value;
       document.getElementById('benefitCycleBasis').value = b.cycleBasis || 'calendar';
+      document.getElementById('benefitAutoSubscribed').checked = !!b.autoSubscribed;
       deleteBtn.style.display = 'block';
     } else {
       document.getElementById('benefitSheetTitle').textContent = 'Add a perk';
@@ -1110,6 +1310,7 @@
       document.getElementById('benefitCadence').value = 'quarterly';
       document.getElementById('benefitValue').value = '';
       document.getElementById('benefitCycleBasis').value = 'calendar';
+      document.getElementById('benefitAutoSubscribed').checked = false;
       deleteBtn.style.display = 'none';
     }
     benefitBackdrop.className = 'sheet-backdrop show';
@@ -1125,13 +1326,15 @@
     var cadence = document.getElementById('benefitCadence').value;
     var value = Number(document.getElementById('benefitValue').value) || 0;
     var cycleBasis = document.getElementById('benefitCycleBasis').value;
+    var autoSubscribed = document.getElementById('benefitAutoSubscribed').checked;
 
     if (editingBenefitId) {
       var b = state.benefits.find(function(x){ return x.id === editingBenefitId; });
-      b.name = name; b.cardId = cardId; b.cadence = cadence; b.value = value; b.cycleBasis = cycleBasis;
+      b.name = name; b.cardId = cardId; b.cadence = cadence; b.value = value; b.cycleBasis = cycleBasis; b.autoSubscribed = autoSubscribed;
     } else {
-      state.benefits.push({ id: uid(), cardId: cardId, name: name, cadence: cadence, value: value, cycleBasis: cycleBasis, redemptions: {} });
+      state.benefits.push({ id: uid(), cardId: cardId, name: name, cadence: cadence, value: value, cycleBasis: cycleBasis, autoSubscribed: autoSubscribed, redemptions: {} });
     }
+    reconcileAutoSubscriptions();
     benefitBackdrop.className = 'sheet-backdrop';
     saveData().then(render);
     render();
@@ -1233,7 +1436,7 @@
     var input = document.getElementById('newCardName');
     var name = input.value.trim();
     if (!name) { input.focus(); return; }
-    state.cards.push({ id: uid(), name: name, openedDate: null, statuses: '', multipliers: '' });
+    state.cards.push({ id: uid(), name: name, openedDate: null, statuses: '', multipliers: '', notes: '' });
     input.value = '';
     renderCardManageList();
     saveData().then(render);
@@ -1262,8 +1465,14 @@
     data.cards.forEach(function(importCard){
       var existingCard = findCardByName(importCard.name);
       var benefits = Array.isArray(importCard.benefits) ? importCard.benefits : [];
+      var hasAnniversaryBenefit = benefits.some(function(b){ return b.cycleBasis === 'anniversary'; });
+
       if (!existingCard) {
-        diff.newCards.push({ name: importCard.name, benefits: benefits, statuses: importCard.statuses || '', multipliers: importCard.multipliers || '' });
+        diff.newCards.push({
+          name: importCard.name, benefits: benefits, statuses: importCard.statuses || '', multipliers: importCard.multipliers || '',
+          needsOpenedDate: hasAnniversaryBenefit && !importCard.openedDate,
+          openedDateGiven: importCard.openedDate || null
+        });
       } else {
         var newPerks = [];
         var updates = [];
@@ -1284,12 +1493,16 @@
 
         var statusesChanged = importCard.statuses && importCard.statuses.trim() && importCard.statuses.trim() !== (existingCard.statuses || '').trim();
         var multipliersChanged = importCard.multipliers && importCard.multipliers.trim() && importCard.multipliers.trim() !== (existingCard.multipliers || '').trim();
+        var notesChanged = importCard.notes && importCard.notes.trim() && importCard.notes.trim() !== (existingCard.notes || '').trim();
+        var needsOpenedDate = hasAnniversaryBenefit && !existingCard.openedDate && !importCard.openedDate;
 
-        if (newPerks.length || updates.length || orphans.length || statusesChanged || multipliersChanged) {
+        if (newPerks.length || updates.length || orphans.length || statusesChanged || multipliersChanged || notesChanged || needsOpenedDate) {
           diff.cardUpdates.push({
             cardId: existingCard.id, cardName: existingCard.name, newPerks: newPerks, updates: updates, orphans: orphans,
             statusesChanged: statusesChanged, oldStatuses: existingCard.statuses || '', newStatuses: importCard.statuses || '',
-            multipliersChanged: multipliersChanged, oldMultipliers: existingCard.multipliers || '', newMultipliers: importCard.multipliers || ''
+            multipliersChanged: multipliersChanged, oldMultipliers: existingCard.multipliers || '', newMultipliers: importCard.multipliers || '',
+            notesChanged: notesChanged, oldNotes: existingCard.notes || '', newNotes: importCard.notes || '',
+            needsOpenedDate: needsOpenedDate, openedDateGiven: importCard.openedDate || null
           });
         }
       }
@@ -1307,10 +1520,17 @@
     if (pendingImportDiff.newCards.length === 0 && pendingImportDiff.cardUpdates.length === 0) {
       html = '<div class="empty">Nothing new to import — everything already matches.</div>';
     }
-    pendingImportDiff.newCards.forEach(function(nc){
+    pendingImportDiff.newCards.forEach(function(nc, ncIdx){
       html += '<div style="margin-bottom:14px;"><strong>' + escapeHtml(nc.name) + '</strong> — new card, ' + nc.benefits.length + ' perk(s) will be added.';
       if (nc.statuses) html += '<div style="font-size:13px;margin-top:4px;">Status: ' + escapeHtml(nc.statuses) + '</div>';
       if (nc.multipliers) html += '<div style="font-size:13px;margin-top:4px;">Multipliers: ' + escapeHtml(nc.multipliers) + '</div>';
+      if (nc.notes) html += '<div style="font-size:13px;margin-top:4px;">Notes: ' + escapeHtml(nc.notes.slice(0,120)) + (nc.notes.length > 120 ? '…' : '') + '</div>';
+      if (nc.needsOpenedDate) {
+        html += '<div class="field" style="margin-top:8px;">' +
+          '<label style="font-size:11px;color:var(--rust);">Has anniversary-based perks — when did this card open?</label>' +
+          '<input type="date" data-opened-new="' + ncIdx + '">' +
+        '</div>';
+      }
       html += '</div>';
     });
     pendingImportDiff.cardUpdates.forEach(function(cu, cuIdx){
@@ -1321,6 +1541,13 @@
       });
       if (cu.statusesChanged) html += '<div style="font-size:13px;margin-top:4px;">Status: ' + (cu.oldStatuses ? escapeHtml(cu.oldStatuses) + ' \u2192 ' : '') + escapeHtml(cu.newStatuses) + '</div>';
       if (cu.multipliersChanged) html += '<div style="font-size:13px;margin-top:4px;">Multipliers: ' + (cu.oldMultipliers ? escapeHtml(cu.oldMultipliers) + ' \u2192 ' : '') + escapeHtml(cu.newMultipliers) + '</div>';
+      if (cu.notesChanged) html += '<div style="font-size:13px;margin-top:4px;">Notes updated (' + cu.newNotes.length + ' chars)</div>';
+      if (cu.needsOpenedDate) {
+        html += '<div class="field" style="margin-top:8px;">' +
+          '<label style="font-size:11px;color:var(--rust);">Has anniversary-based perks — when did this card open?</label>' +
+          '<input type="date" data-opened-update="' + cuIdx + '">' +
+        '</div>';
+      }
       cu.orphans.forEach(function(o, oIdx){
         html += '<div style="font-size:13px;margin-top:6px;display:flex;justify-content:space-between;align-items:center;">' +
           '<span>' + escapeHtml(o.name) + ' <span style="color:var(--ink-soft);">(not in import)</span></span>' +
@@ -1350,16 +1577,34 @@
 
   document.getElementById('applyImportBtn').addEventListener('click', function(){
     if (!pendingImportDiff) return;
-    pendingImportDiff.newCards.forEach(function(nc){
+
+    // Validate required opened-date inputs first
+    var missing = false;
+    var newOpenedDates = {};
+    Array.prototype.forEach.call(document.querySelectorAll('input[data-opened-new]'), function(inp){
+      var idx = Number(inp.getAttribute('data-opened-new'));
+      if (!inp.value) { missing = true; inp.style.borderColor = 'var(--rust)'; }
+      newOpenedDates[idx] = inp.value;
+    });
+    var updateOpenedDates = {};
+    Array.prototype.forEach.call(document.querySelectorAll('input[data-opened-update]'), function(inp){
+      var idx = Number(inp.getAttribute('data-opened-update'));
+      if (!inp.value) { missing = true; inp.style.borderColor = 'var(--rust)'; }
+      updateOpenedDates[idx] = inp.value;
+    });
+    if (missing) { alert('Enter the opening date for each card with anniversary-based perks before applying.'); return; }
+
+    pendingImportDiff.newCards.forEach(function(nc, ncIdx){
       var cardId = uid();
-      state.cards.push({ id: cardId, name: nc.name, openedDate: null, statuses: nc.statuses || '', multipliers: nc.multipliers || '' });
+      var openedDate = nc.openedDateGiven || newOpenedDates[ncIdx] || null;
+      state.cards.push({ id: cardId, name: nc.name, openedDate: openedDate, statuses: nc.statuses || '', multipliers: nc.multipliers || '', notes: nc.notes || '' });
       nc.benefits.forEach(function(b){
-        state.benefits.push({ id: uid(), cardId: cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, cycleBasis: b.cycleBasis || 'calendar', redemptions: {} });
+        state.benefits.push({ id: uid(), cardId: cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, cycleBasis: b.cycleBasis || 'calendar', autoSubscribed: !!b.autoSubscribed, redemptions: {} });
       });
     });
-    pendingImportDiff.cardUpdates.forEach(function(cu){
+    pendingImportDiff.cardUpdates.forEach(function(cu, cuIdx){
       cu.newPerks.forEach(function(b){
-        state.benefits.push({ id: uid(), cardId: cu.cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, cycleBasis: b.cycleBasis || 'calendar', redemptions: {} });
+        state.benefits.push({ id: uid(), cardId: cu.cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, cycleBasis: b.cycleBasis || 'calendar', autoSubscribed: !!b.autoSubscribed, redemptions: {} });
       });
       cu.updates.forEach(function(u){
         var b = state.benefits.find(function(x){ return x.id === u.benefitId; });
@@ -1373,6 +1618,14 @@
         var card2 = state.cards.find(function(x){ return x.id === cu.cardId; });
         if (card2) card2.multipliers = cu.newMultipliers;
       }
+      if (cu.notesChanged) {
+        var card4 = state.cards.find(function(x){ return x.id === cu.cardId; });
+        if (card4) card4.notes = cu.newNotes;
+      }
+      if (cu.needsOpenedDate) {
+        var card3 = state.cards.find(function(x){ return x.id === cu.cardId; });
+        if (card3 && !card3.openedDate) card3.openedDate = cu.openedDateGiven || updateOpenedDates[cuIdx] || null;
+      }
       cu.orphans.forEach(function(o){
         if (!o.keep) {
           state.benefits = state.benefits.filter(function(x){ return x.id !== o.benefitId; });
@@ -1383,6 +1636,7 @@
     document.getElementById('importText').value = '';
     document.getElementById('importPasteView').style.display = 'block';
     document.getElementById('importReviewView').style.display = 'none';
+    reconcileAutoSubscriptions();
     renderCardManageList();
     saveData().then(render);
     render();
