@@ -215,6 +215,7 @@
     padding: 3px 8px;
     border-radius: 5px;
   }
+  .stub-cycle.soon{ background: var(--rust-soft); color: var(--rust); }
   .stub-status{
     font-family:'Space Grotesk', sans-serif;
     font-size: 11px;
@@ -223,6 +224,7 @@
     border-radius: 999px;
   }
   .stub-status.open{ background: var(--rust-soft); color: var(--rust); }
+  .stub-status.partial{ background: #F2E4B8; color: #8A6A0A; }
   .stub-status.redeemed{ background: var(--teal-soft); color: var(--teal); }
 
   .stamp{
@@ -243,6 +245,72 @@
     pointer-events:none;
   }
 
+  .statuses-block{
+    background: var(--bg-2);
+    border: 1px solid #2A343A;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+  }
+  .statuses-title{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--brass);
+    margin-bottom: 8px;
+  }
+  .status-row{
+    display:flex;
+    justify-content:space-between;
+    gap: 10px;
+    font-size: 12px;
+    padding: 4px 0;
+    color: #C9D3CC;
+  }
+  .status-row .status-card{ font-weight:600; color: var(--stub); white-space:nowrap; }
+  .status-row .status-text{ text-align:right; color: #9FACA4; }
+
+  .list-header-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin: 22px 0 10px 2px;
+  }
+  .list-header-row .section-label{ margin: 0; }
+  .shrug-link{
+    background:none;
+    border:none;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #7C8880;
+    cursor:pointer;
+    padding: 0;
+  }
+
+  .stub-swipe-wrap{
+    position: relative;
+    margin-bottom: 14px;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .stub-swipe-wrap .stub{ margin-bottom: 0; touch-action: pan-y; position:relative; z-index:2; transition: transform 0.18s ease; }
+  .swipe-bg{
+    position:absolute;
+    inset:0;
+    background: var(--rust);
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    padding-right: 20px;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size: 13px;
+    color: #fff;
+    z-index: 1;
+  }
   .empty{
     font-family:'IBM Plex Mono', monospace;
     font-size: 12px;
@@ -348,6 +416,22 @@
     padding: 10px 0;
     border-bottom: 1px solid #D6DFD3;
     font-size: 14px;
+    gap: 8px;
+  }
+  .list-manage .item .card-info{ flex:1; }
+  .list-manage .item .card-name{ font-weight:600; }
+  .list-manage .item .opened-row{
+    display:flex; align-items:center; gap:6px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .list-manage .item .opened-row input{
+    font-size: 12px;
+    padding: 4px 6px;
+    border-radius: 5px;
+    border: 1px solid #C7D0C4;
+    font-family: inherit;
   }
   .list-manage .item button{
     background:none; border:none; color: var(--rust); font-size:12px; cursor:pointer;
@@ -379,16 +463,48 @@
 
   <div class="rail" id="cardRail"></div>
 
-  <div class="section-label" id="listLabel">All perks</div>
+  <div class="statuses-block" id="statusesBlock" style="display:none;">
+    <div class="statuses-title">Elite status on file</div>
+    <div id="statusesList"></div>
+  </div>
+
+  <div class="statuses-block" id="multipliersBlock" style="display:none;">
+    <div class="statuses-title">Points multipliers</div>
+    <div id="multipliersList"></div>
+  </div>
+
+  <div class="list-header-row">
+    <div class="section-label" id="listLabel">All perks</div>
+    <button class="shrug-link" id="openShrugPile">Shrug pile <span id="shrugCount"></span></button>
+  </div>
   <div id="stubList"><div class="loading">Loading ledger…</div></div>
+
+  <div id="originChatFooter" style="display:none;text-align:center;margin-top:26px;">
+    <a id="originChatLink" href="#" target="_blank" rel="noopener" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#7C8880;text-decoration:none;">Built &amp; edited in this Claude chat &#8594;</a>
+  </div>
 </div>
 
 <button class="fab" id="openAddBenefit">+</button>
 
+<!-- Shrug pile sheet -->
+<div class="sheet-backdrop" id="shrugBackdrop">
+  <div class="sheet">
+    <h3>Shrug pile</h3>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;">Perks you've swiped away because you don't care about them. They stay off the main list but nothing is deleted.</div>
+    <div id="shrugList"></div>
+    <button class="btn btn-ghost" id="closeShrugPile">Close</button>
+  </div>
+</div>
+
 <!-- Redeem sheet -->
 <div class="sheet-backdrop" id="redeemBackdrop">
   <div class="sheet">
-    <h3 id="redeemTitle">Mark redeemed</h3>
+    <h3 id="redeemTitle">Log redemption</h3>
+    <div class="field" id="redeemAlreadyNote" style="display:none;font-size:12px;color:var(--ink-soft);"></div>
+    <div class="field">
+      <label>Amount redeemed just now ($)</label>
+      <input type="number" id="redeemAmount" inputmode="decimal">
+    </div>
     <div class="who-row" id="whoRow"></div>
     <button class="btn btn-ghost" id="redeemCancel">Cancel</button>
   </div>
@@ -430,6 +546,13 @@
         <input type="number" id="benefitValue" placeholder="0" inputmode="decimal">
       </div>
     </div>
+    <div class="field">
+      <label>Resets on</label>
+      <select id="benefitCycleBasis">
+        <option value="calendar">Calendar (Jan–Dec, standard quarters)</option>
+        <option value="anniversary">Card anniversary (needs opened date set)</option>
+      </select>
+    </div>
     <button class="btn btn-brass" id="saveBenefit">Save perk</button>
     <button class="btn btn-danger" id="deleteBenefit" style="display:none;">Delete perk</button>
     <button class="btn btn-ghost" id="cancelBenefit">Cancel</button>
@@ -468,6 +591,13 @@
       <button class="btn btn-brass" id="applyImportBtn">Apply import</button>
       <button class="btn btn-ghost" id="cancelImportBtn">Cancel</button>
     </div>
+
+    <div class="section-label">Build log</div>
+    <div class="field">
+      <label>Link to the Claude chat this was built/edited in</label>
+      <input type="url" id="originChatUrl" placeholder="https://claude.ai/chat/...">
+    </div>
+    <button class="btn btn-primary" id="saveOriginChat">Save link</button>
 
     <button class="btn btn-ghost" id="closeSettings">Close</button>
   </div>
@@ -510,6 +640,71 @@
     if (cadence === 'annual') return '' + y;
     return '';
   }
+  function cycleEndDate(cadence, date){
+    var y = date.getFullYear();
+    var m = date.getMonth();
+    if (cadence === 'monthly') return new Date(y, m+1, 0);
+    if (cadence === 'quarterly') { var qStartMonth = Math.floor(m/3)*3; return new Date(y, qStartMonth+3, 0); }
+    if (cadence === 'semiannual') return m < 6 ? new Date(y,5,30) : new Date(y,11,31);
+    if (cadence === 'annual') return new Date(y,11,31);
+    return date;
+  }
+  function fmtExpiry(date){
+    return date.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  }
+  function daysUntil(date){
+    var now = new Date();
+    var a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var b = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    return Math.round((b-a) / 86400000);
+  }
+  function periodMonthsFor(cadence){
+    return { monthly:1, quarterly:3, semiannual:6, annual:12 }[cadence] || 12;
+  }
+  function addMonths(date, n){
+    var d = new Date(date.getTime());
+    d.setMonth(d.getMonth() + n);
+    return d;
+  }
+  function getCard(cardId){
+    return state.cards.find(function(c){ return c.id === cardId; });
+  }
+  // Returns {start, end} of the anniversary cycle containing `now`, anchored to openedDate.
+  function anniversaryCycle(openedDate, periodMonths, now){
+    var cycleStart = new Date(openedDate.getTime());
+    var guard = 0;
+    while (addMonths(cycleStart, periodMonths) <= now && guard < 1200) {
+      cycleStart = addMonths(cycleStart, periodMonths);
+      guard++;
+    }
+    var cycleEnd = addMonths(cycleStart, periodMonths);
+    cycleEnd.setDate(cycleEnd.getDate() - 1);
+    return { start: cycleStart, end: cycleEnd };
+  }
+  // Unified cycle lookup for a benefit: returns {key, label, endDate}
+  function getCycleInfo(b, now){
+    if (b.cycleBasis === 'anniversary') {
+      var card = getCard(b.cardId);
+      if (card && card.openedDate) {
+        var opened = new Date(card.openedDate + 'T00:00:00');
+        if (!isNaN(opened.getTime())) {
+          var pm = periodMonthsFor(b.cadence);
+          var cyc = anniversaryCycle(opened, pm, now);
+          return {
+            key: 'A-' + cyc.start.toISOString().slice(0,10),
+            label: fmtExpiry(cyc.start) + '\u2013' + fmtExpiry(cyc.end),
+            endDate: cyc.end
+          };
+        }
+      }
+      // no opened date set yet — fall through to calendar so it still works
+    }
+    return {
+      key: cycleKeyFor(b.cadence, now),
+      label: cycleLabelFor(b.cadence, now),
+      endDate: cycleEndDate(b.cadence, now)
+    };
+  }
   function elapsedCyclesThisYear(cadence, date){
     var m = date.getMonth();
     if (cadence === 'monthly') return m + 1;
@@ -522,7 +717,11 @@
   // ---- API ----
   function loadData(){
     return fetch(API).then(function(r){ return r.json(); }).then(function(d){
-      state = Object.assign({ people:['Person 1','Person 2'], cards:[], benefits:[] }, d);
+      state = Object.assign({ people:['Person 1','Person 2'], cards:[], benefits:[], originChatUrl: '' }, d);
+      if (!state.originChatUrl) {
+        state.originChatUrl = 'https://claude.ai/chat/7939444a-0221-4090-b3c3-3e8348e528aa';
+        saveData();
+      }
       render();
     }).catch(function(){
       document.getElementById('stubList').innerHTML = '<div class="empty">Could not reach the shared ledger. Check your connection and reload.</div>';
@@ -566,15 +765,23 @@
     var now = new Date();
     var captured = 0, possible = 0;
     state.benefits.forEach(function(b){
+      if (b.cycleBasis === 'anniversary') {
+        // Anniversary cycles don't map cleanly onto "elapsed this calendar year" —
+        // approximate possible value as one full cadence period, and count whatever's
+        // actually been logged in the current cycle as captured.
+        possible += Number(b.value) || 0;
+        var info = getCycleInfo(b, now);
+        var r = b.redemptions && b.redemptions[info.key];
+        if (r && r.amount) captured += Number(r.amount) || 0;
+        return;
+      }
       var elapsed = elapsedCyclesThisYear(b.cadence, now);
       possible += elapsed * (Number(b.value) || 0);
       for (var i = 1; i <= elapsed; i++){
-        // build a date representative of each elapsed cycle to get its key
         var probeDate = cycleProbeDate(b.cadence, now.getFullYear(), i);
         var key = cycleKeyFor(b.cadence, probeDate);
-        if (b.redemptions && b.redemptions[key] && b.redemptions[key].redeemed) {
-          captured += Number(b.value) || 0;
-        }
+        var red = b.redemptions && b.redemptions[key];
+        if (red && red.amount) captured += Number(red.amount) || 0;
       }
     });
     document.getElementById('capturedNum').textContent = fmtMoney(captured);
@@ -592,6 +799,7 @@
     var label = document.getElementById('listLabel');
     var now = new Date();
     var benefits = state.benefits.filter(function(b){
+      if (b.discarded) return false;
       return activeCardFilter === 'all' || b.cardId === activeCardFilter;
     });
     label.textContent = activeCardFilter === 'all' ? 'All perks' : cardName(activeCardFilter) + ' perks';
@@ -607,9 +815,20 @@
 
     listEl.innerHTML = '';
     benefits.forEach(function(b){
-      var key = cycleKeyFor(b.cadence, now);
-      var redemption = b.redemptions && b.redemptions[key];
-      var isRedeemed = !!(redemption && redemption.redeemed);
+      var info = getCycleInfo(b, now);
+      var redemption = b.redemptions && b.redemptions[info.key];
+      var amount = (redemption && Number(redemption.amount)) || 0;
+      var value = Number(b.value) || 0;
+      var status = amount <= 0 ? 'open' : (amount >= value ? 'redeemed' : 'partial');
+      var daysLeft = daysUntil(info.endDate);
+      var isSoon = status !== 'redeemed' && daysLeft <= 7;
+      var cycleText = info.label + ' \u00b7 Expires ' + fmtExpiry(info.endDate);
+      var valueText = amount > 0 ? (fmtMoney(amount) + ' / ' + fmtMoney(value)) : fmtMoney(value);
+      var statusLabel = status === 'redeemed' ? 'Redeemed' : (status === 'partial' ? 'Partial' : 'Open');
+
+      var wrap = document.createElement('div');
+      wrap.className = 'stub-swipe-wrap';
+      wrap.innerHTML = '<div class="swipe-bg">Shrug \u2192 doesn\u2019t matter</div>';
 
       var stub = document.createElement('div');
       stub.className = 'stub';
@@ -619,23 +838,23 @@
           '<div class="stub-top">' +
             '<div>' +
               '<div class="stub-name">' + escapeHtml(b.name) + '</div>' +
-              '<div class="stub-card">' + escapeHtml(cardName(b.cardId)) + ' · ' + cadenceLabel(b.cadence) + '</div>' +
+              '<div class="stub-card">' + escapeHtml(cardName(b.cardId)) + ' \u00b7 ' + cadenceLabel(b.cadence) + (b.cycleBasis === 'anniversary' ? ' \u00b7 card yr' : '') + '</div>' +
             '</div>' +
             '<div class="stub-top-right">' +
-              '<div class="stub-value">' + fmtMoney(Number(b.value)||0) + '</div>' +
+              '<div class="stub-value">' + valueText + '</div>' +
               '<button class="stub-edit" data-edit-id="' + b.id + '">&#9998;</button>' +
             '</div>' +
           '</div>' +
           '<div class="stub-bottom">' +
-            '<div class="stub-cycle">' + cycleLabelFor(b.cadence, now) + '</div>' +
-            '<div class="stub-status ' + (isRedeemed?'redeemed':'open') + '">' + (isRedeemed ? 'Redeemed' : 'Open') + '</div>' +
+            '<div class="stub-cycle' + (isSoon ? ' soon' : '') + '">' + cycleText + '</div>' +
+            '<div class="stub-status ' + status + '">' + statusLabel + '</div>' +
           '</div>' +
         '</div>' +
-        (isRedeemed ? '<div class="stamp">' + escapeHtml(redemption.by) + '</div>' : '');
+        (amount > 0 ? '<div class="stamp">' + escapeHtml(redemption.by) + '</div>' : '');
 
       stub.querySelector('.stub-body').addEventListener('click', function(e){
         if (e.target.closest('.stub-edit')) return; // handled separately
-        if (isRedeemed) {
+        if (status === 'redeemed') {
           openUndoSheet(b.id);
         } else {
           openRedeemSheet(b.id);
@@ -645,9 +864,127 @@
         e.stopPropagation();
         openBenefitSheet(b.id);
       });
-      listEl.appendChild(stub);
+
+      attachSwipeToDiscard(stub, wrap, b.id);
+
+      wrap.appendChild(stub);
+      listEl.appendChild(wrap);
     });
   }
+
+  // ---- swipe-to-discard ("shrug pile") ----
+  function attachSwipeToDiscard(stubEl, wrapEl, benefitId){
+    var startX = null, startY = null, dx = 0, dragging = false, decided = false, isHorizontal = false;
+    var THRESHOLD = 90;
+
+    stubEl.addEventListener('pointerdown', function(e){
+      if (e.target.closest('.stub-edit')) return;
+      startX = e.clientX; startY = e.clientY; dx = 0; dragging = true; decided = false; isHorizontal = false;
+    });
+    stubEl.addEventListener('pointermove', function(e){
+      if (!dragging || startX === null) return;
+      var deltaX = e.clientX - startX;
+      var deltaY = e.clientY - startY;
+      if (!decided) {
+        if (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8) {
+          decided = true;
+          isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
+        }
+      }
+      if (decided && isHorizontal) {
+        dx = Math.min(0, deltaX); // only allow leftward drag
+        stubEl.style.transform = 'translateX(' + dx + 'px)';
+      }
+    });
+    function endDrag(){
+      if (!dragging) return;
+      dragging = false;
+      if (isHorizontal && dx < -THRESHOLD) {
+        stubEl.style.transform = 'translateX(-100%)';
+        var b = state.benefits.find(function(x){ return x.id === benefitId; });
+        if (b) {
+          b.discarded = true;
+          saveData().then(render);
+          setTimeout(render, 180);
+        }
+      } else {
+        stubEl.style.transform = 'translateX(0)';
+      }
+      startX = null; dx = 0; decided = false; isHorizontal = false;
+    }
+    stubEl.addEventListener('pointerup', endDrag);
+    stubEl.addEventListener('pointercancel', endDrag);
+    stubEl.addEventListener('pointerleave', function(){ if (dragging && !isHorizontal) endDrag(); });
+  }
+
+  // ---- statuses block ----
+  function renderStatuses(){
+    var block = document.getElementById('statusesBlock');
+    var list = document.getElementById('statusesList');
+    var withStatuses = state.cards.filter(function(c){ return c.statuses && c.statuses.trim(); });
+    if (withStatuses.length === 0) { block.style.display = 'none'; return; }
+    block.style.display = 'block';
+    list.innerHTML = withStatuses.map(function(c){
+      return '<div class="status-row"><span class="status-card">' + escapeHtml(c.name) + '</span><span class="status-text">' + escapeHtml(c.statuses) + '</span></div>';
+    }).join('');
+  }
+  function renderMultipliers(){
+    var block = document.getElementById('multipliersBlock');
+    var list = document.getElementById('multipliersList');
+    var withMult = state.cards.filter(function(c){ return c.multipliers && c.multipliers.trim(); });
+    if (withMult.length === 0) { block.style.display = 'none'; return; }
+    block.style.display = 'block';
+    list.innerHTML = withMult.map(function(c){
+      return '<div class="status-row"><span class="status-card">' + escapeHtml(c.name) + '</span><span class="status-text">' + escapeHtml(c.multipliers) + '</span></div>';
+    }).join('');
+  }
+
+  // ---- shrug pile sheet ----
+  var shrugBackdrop = document.getElementById('shrugBackdrop');
+  function renderOriginChatFooter(){
+    var footer = document.getElementById('originChatFooter');
+    var link = document.getElementById('originChatLink');
+    if (state.originChatUrl) {
+      link.href = state.originChatUrl;
+      footer.style.display = 'block';
+    } else {
+      footer.style.display = 'none';
+    }
+  }
+  function renderShrugCount(){
+    var n = state.benefits.filter(function(b){ return b.discarded; }).length;
+    document.getElementById('shrugCount').textContent = n > 0 ? '(' + n + ')' : '';
+  }
+  function renderShrugList(){
+    var container = document.getElementById('shrugList');
+    var discarded = state.benefits.filter(function(b){ return b.discarded; });
+    if (discarded.length === 0) {
+      container.innerHTML = '<div class="empty">Nothing here. Swipe a perk left from the main list to shrug it off.</div>';
+      return;
+    }
+    container.innerHTML = '';
+    discarded.forEach(function(b){
+      var row = document.createElement('div');
+      row.className = 'item';
+      row.innerHTML = '<span>' + escapeHtml(b.name) + ' <span style="color:var(--ink-soft);font-size:12px;">(' + escapeHtml(cardName(b.cardId)) + ')</span></span>';
+      var restore = document.createElement('button');
+      restore.textContent = 'Restore';
+      restore.addEventListener('click', function(){
+        b.discarded = false;
+        renderShrugList();
+        saveData().then(render);
+        render();
+      });
+      row.appendChild(restore);
+      container.appendChild(row);
+    });
+  }
+  document.getElementById('openShrugPile').addEventListener('click', function(){
+    renderShrugList();
+    shrugBackdrop.className = 'sheet-backdrop show';
+  });
+  document.getElementById('closeShrugPile').addEventListener('click', function(){ shrugBackdrop.className = 'sheet-backdrop'; });
+  shrugBackdrop.addEventListener('click', function(e){ if (e.target === shrugBackdrop) shrugBackdrop.className = 'sheet-backdrop'; });
 
   function escapeHtml(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
@@ -658,7 +995,11 @@
   function render(){
     renderRail();
     renderSummary();
+    renderStatuses();
+    renderMultipliers();
     renderList();
+    renderShrugCount();
+    renderOriginChatFooter();
   }
 
   // ---- redeem sheet ----
@@ -667,7 +1008,22 @@
   function openRedeemSheet(benefitId){
     redeemingBenefitId = benefitId;
     var b = state.benefits.find(function(x){ return x.id === benefitId; });
-    document.getElementById('redeemTitle').textContent = 'Who redeemed "' + b.name + '"?';
+    var now = new Date();
+    var info = getCycleInfo(b, now);
+    var redemption = b.redemptions && b.redemptions[info.key];
+    var already = (redemption && Number(redemption.amount)) || 0;
+    var remaining = Math.max(0, (Number(b.value)||0) - already);
+
+    document.getElementById('redeemTitle').textContent = 'Log redemption for "' + b.name + '"';
+    var note = document.getElementById('redeemAlreadyNote');
+    if (already > 0) {
+      note.style.display = 'block';
+      note.textContent = fmtMoney(already) + ' of ' + fmtMoney(b.value) + ' already logged this cycle, by ' + redemption.by + '.';
+    } else {
+      note.style.display = 'none';
+    }
+    document.getElementById('redeemAmount').value = remaining || '';
+
     whoRow.innerHTML = '';
     state.people.forEach(function(p){
       var btn = document.createElement('button');
@@ -684,11 +1040,15 @@
   redeemBackdrop.addEventListener('click', function(e){ if (e.target === redeemBackdrop) redeemBackdrop.className='sheet-backdrop'; });
 
   function markRedeemed(benefitId, who){
+    var justNow = Number(document.getElementById('redeemAmount').value) || 0;
+    if (justNow <= 0) return;
     var b = state.benefits.find(function(x){ return x.id === benefitId; });
     var now = new Date();
-    var key = cycleKeyFor(b.cadence, now);
+    var info = getCycleInfo(b, now);
     if (!b.redemptions) b.redemptions = {};
-    b.redemptions[key] = { redeemed:true, by: who, date: now.toISOString() };
+    var existing = b.redemptions[info.key];
+    var priorAmount = (existing && Number(existing.amount)) || 0;
+    b.redemptions[info.key] = { amount: priorAmount + justNow, by: who, date: now.toISOString() };
     redeemBackdrop.className = 'sheet-backdrop';
     saveData().then(render);
     render();
@@ -701,9 +1061,9 @@
     undoingBenefitId = benefitId;
     var b = state.benefits.find(function(x){ return x.id === benefitId; });
     var now = new Date();
-    var key = cycleKeyFor(b.cadence, now);
-    var r = b.redemptions && b.redemptions[key];
-    document.getElementById('undoTitle').textContent = r ? ('Redeemed by ' + r.by) : 'Redeemed';
+    var info = getCycleInfo(b, now);
+    var r = b.redemptions && b.redemptions[info.key];
+    document.getElementById('undoTitle').textContent = r ? (fmtMoney(r.amount) + ' redeemed by ' + r.by) : 'Redeemed';
     undoBackdrop.className = 'sheet-backdrop show';
   }
   document.getElementById('undoCancel').addEventListener('click', function(){ undoBackdrop.className='sheet-backdrop'; });
@@ -711,8 +1071,8 @@
   document.getElementById('undoConfirm').addEventListener('click', function(){
     var b = state.benefits.find(function(x){ return x.id === undoingBenefitId; });
     var now = new Date();
-    var key = cycleKeyFor(b.cadence, now);
-    if (b.redemptions) delete b.redemptions[key];
+    var info = getCycleInfo(b, now);
+    if (b.redemptions) delete b.redemptions[info.key];
     undoBackdrop.className = 'sheet-backdrop';
     saveData().then(render);
     render();
@@ -741,6 +1101,7 @@
       document.getElementById('benefitName').value = b.name;
       document.getElementById('benefitCadence').value = b.cadence;
       document.getElementById('benefitValue').value = b.value;
+      document.getElementById('benefitCycleBasis').value = b.cycleBasis || 'calendar';
       deleteBtn.style.display = 'block';
     } else {
       document.getElementById('benefitSheetTitle').textContent = 'Add a perk';
@@ -748,6 +1109,7 @@
       document.getElementById('benefitName').value = '';
       document.getElementById('benefitCadence').value = 'quarterly';
       document.getElementById('benefitValue').value = '';
+      document.getElementById('benefitCycleBasis').value = 'calendar';
       deleteBtn.style.display = 'none';
     }
     benefitBackdrop.className = 'sheet-backdrop show';
@@ -762,12 +1124,13 @@
     var cardId = document.getElementById('benefitCard').value;
     var cadence = document.getElementById('benefitCadence').value;
     var value = Number(document.getElementById('benefitValue').value) || 0;
+    var cycleBasis = document.getElementById('benefitCycleBasis').value;
 
     if (editingBenefitId) {
       var b = state.benefits.find(function(x){ return x.id === editingBenefitId; });
-      b.name = name; b.cardId = cardId; b.cadence = cadence; b.value = value;
+      b.name = name; b.cardId = cardId; b.cadence = cadence; b.value = value; b.cycleBasis = cycleBasis;
     } else {
-      state.benefits.push({ id: uid(), cardId: cardId, name: name, cadence: cadence, value: value, redemptions: {} });
+      state.benefits.push({ id: uid(), cardId: cardId, name: name, cadence: cadence, value: value, cycleBasis: cycleBasis, redemptions: {} });
     }
     benefitBackdrop.className = 'sheet-backdrop';
     saveData().then(render);
@@ -785,12 +1148,19 @@
   function openSettings(){
     document.getElementById('person1Name').value = state.people[0] || 'Person 1';
     document.getElementById('person2Name').value = state.people[1] || 'Person 2';
+    document.getElementById('originChatUrl').value = state.originChatUrl || '';
     renderCardManageList();
     settingsBackdrop.className = 'sheet-backdrop show';
   }
   document.getElementById('openSettings').addEventListener('click', openSettings);
   document.getElementById('closeSettings').addEventListener('click', function(){ settingsBackdrop.className='sheet-backdrop'; });
   settingsBackdrop.addEventListener('click', function(e){ if (e.target===settingsBackdrop) settingsBackdrop.className='sheet-backdrop'; });
+
+  document.getElementById('saveOriginChat').addEventListener('click', function(){
+    state.originChatUrl = document.getElementById('originChatUrl').value.trim();
+    saveData().then(render);
+    render();
+  });
 
   document.getElementById('savePeople').addEventListener('click', function(){
     state.people = [
@@ -811,7 +1181,21 @@
     state.cards.forEach(function(c){
       var row = document.createElement('div');
       row.className = 'item';
-      row.innerHTML = '<span>' + escapeHtml(c.name) + '</span>';
+      row.innerHTML =
+        '<div class="card-info">' +
+          '<div class="card-name">' + escapeHtml(c.name) + '</div>' +
+          '<div class="opened-row">' +
+            'Opened: <input type="date" data-opened-for="' + c.id + '" value="' + (c.openedDate || '') + '">' +
+          '</div>' +
+          '<div class="field" style="margin:8px 0 0;">' +
+            '<label style="font-size:10px;">Elite status granted (free text)</label>' +
+            '<input type="text" data-statuses-for="' + c.id + '" value="' + escapeHtml(c.statuses || '') + '" placeholder="e.g. Hilton Diamond, National Emerald Exec">' +
+          '</div>' +
+          '<div class="field" style="margin:8px 0 0;">' +
+            '<label style="font-size:10px;">Points multipliers (free text)</label>' +
+            '<input type="text" data-multipliers-for="' + c.id + '" value="' + escapeHtml(c.multipliers || '') + '" placeholder="e.g. 3x dining, 5x flights, 1x other">' +
+          '</div>' +
+        '</div>';
       var del = document.createElement('button');
       del.textContent = 'Remove';
       del.addEventListener('click', function(){
@@ -825,12 +1209,31 @@
       row.appendChild(del);
       list.appendChild(row);
     });
+
+    Array.prototype.forEach.call(list.querySelectorAll('input[data-opened-for]'), function(inp){
+      inp.addEventListener('change', function(){
+        var card = state.cards.find(function(x){ return x.id === inp.getAttribute('data-opened-for'); });
+        if (card) { card.openedDate = inp.value || null; saveData().then(render); render(); }
+      });
+    });
+    Array.prototype.forEach.call(list.querySelectorAll('input[data-statuses-for]'), function(inp){
+      inp.addEventListener('change', function(){
+        var card = state.cards.find(function(x){ return x.id === inp.getAttribute('data-statuses-for'); });
+        if (card) { card.statuses = inp.value.trim(); saveData().then(render); render(); }
+      });
+    });
+    Array.prototype.forEach.call(list.querySelectorAll('input[data-multipliers-for]'), function(inp){
+      inp.addEventListener('change', function(){
+        var card = state.cards.find(function(x){ return x.id === inp.getAttribute('data-multipliers-for'); });
+        if (card) { card.multipliers = inp.value.trim(); saveData().then(render); render(); }
+      });
+    });
   }
   document.getElementById('addCardBtn').addEventListener('click', function(){
     var input = document.getElementById('newCardName');
     var name = input.value.trim();
     if (!name) { input.focus(); return; }
-    state.cards.push({ id: uid(), name: name });
+    state.cards.push({ id: uid(), name: name, openedDate: null, statuses: '', multipliers: '' });
     input.value = '';
     renderCardManageList();
     saveData().then(render);
@@ -860,7 +1263,7 @@
       var existingCard = findCardByName(importCard.name);
       var benefits = Array.isArray(importCard.benefits) ? importCard.benefits : [];
       if (!existingCard) {
-        diff.newCards.push({ name: importCard.name, benefits: benefits });
+        diff.newCards.push({ name: importCard.name, benefits: benefits, statuses: importCard.statuses || '', multipliers: importCard.multipliers || '' });
       } else {
         var newPerks = [];
         var updates = [];
@@ -878,8 +1281,16 @@
         });
         var orphans = state.benefits.filter(function(b){ return b.cardId === existingCard.id && !mentionedIds[b.id]; })
           .map(function(b){ return { benefitId: b.id, name: b.name, keep: true }; });
-        if (newPerks.length || updates.length || orphans.length) {
-          diff.cardUpdates.push({ cardId: existingCard.id, cardName: existingCard.name, newPerks: newPerks, updates: updates, orphans: orphans });
+
+        var statusesChanged = importCard.statuses && importCard.statuses.trim() && importCard.statuses.trim() !== (existingCard.statuses || '').trim();
+        var multipliersChanged = importCard.multipliers && importCard.multipliers.trim() && importCard.multipliers.trim() !== (existingCard.multipliers || '').trim();
+
+        if (newPerks.length || updates.length || orphans.length || statusesChanged || multipliersChanged) {
+          diff.cardUpdates.push({
+            cardId: existingCard.id, cardName: existingCard.name, newPerks: newPerks, updates: updates, orphans: orphans,
+            statusesChanged: statusesChanged, oldStatuses: existingCard.statuses || '', newStatuses: importCard.statuses || '',
+            multipliersChanged: multipliersChanged, oldMultipliers: existingCard.multipliers || '', newMultipliers: importCard.multipliers || ''
+          });
         }
       }
     });
@@ -897,7 +1308,10 @@
       html = '<div class="empty">Nothing new to import — everything already matches.</div>';
     }
     pendingImportDiff.newCards.forEach(function(nc){
-      html += '<div style="margin-bottom:14px;"><strong>' + escapeHtml(nc.name) + '</strong> — new card, ' + nc.benefits.length + ' perk(s) will be added.</div>';
+      html += '<div style="margin-bottom:14px;"><strong>' + escapeHtml(nc.name) + '</strong> — new card, ' + nc.benefits.length + ' perk(s) will be added.';
+      if (nc.statuses) html += '<div style="font-size:13px;margin-top:4px;">Status: ' + escapeHtml(nc.statuses) + '</div>';
+      if (nc.multipliers) html += '<div style="font-size:13px;margin-top:4px;">Multipliers: ' + escapeHtml(nc.multipliers) + '</div>';
+      html += '</div>';
     });
     pendingImportDiff.cardUpdates.forEach(function(cu, cuIdx){
       html += '<div style="margin-bottom:14px;"><strong>' + escapeHtml(cu.cardName) + '</strong>';
@@ -905,6 +1319,8 @@
       cu.updates.forEach(function(u){
         html += '<div style="font-size:13px;margin-top:4px;">↻ ' + escapeHtml(u.name) + ': ' + cadenceLabel(u.oldCadence) + ' ' + fmtMoney(u.oldValue) + ' → ' + cadenceLabel(u.newCadence) + ' ' + fmtMoney(u.newValue) + '</div>';
       });
+      if (cu.statusesChanged) html += '<div style="font-size:13px;margin-top:4px;">Status: ' + (cu.oldStatuses ? escapeHtml(cu.oldStatuses) + ' \u2192 ' : '') + escapeHtml(cu.newStatuses) + '</div>';
+      if (cu.multipliersChanged) html += '<div style="font-size:13px;margin-top:4px;">Multipliers: ' + (cu.oldMultipliers ? escapeHtml(cu.oldMultipliers) + ' \u2192 ' : '') + escapeHtml(cu.newMultipliers) + '</div>';
       cu.orphans.forEach(function(o, oIdx){
         html += '<div style="font-size:13px;margin-top:6px;display:flex;justify-content:space-between;align-items:center;">' +
           '<span>' + escapeHtml(o.name) + ' <span style="color:var(--ink-soft);">(not in import)</span></span>' +
@@ -936,19 +1352,27 @@
     if (!pendingImportDiff) return;
     pendingImportDiff.newCards.forEach(function(nc){
       var cardId = uid();
-      state.cards.push({ id: cardId, name: nc.name });
+      state.cards.push({ id: cardId, name: nc.name, openedDate: null, statuses: nc.statuses || '', multipliers: nc.multipliers || '' });
       nc.benefits.forEach(function(b){
-        state.benefits.push({ id: uid(), cardId: cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, redemptions: {} });
+        state.benefits.push({ id: uid(), cardId: cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, cycleBasis: b.cycleBasis || 'calendar', redemptions: {} });
       });
     });
     pendingImportDiff.cardUpdates.forEach(function(cu){
       cu.newPerks.forEach(function(b){
-        state.benefits.push({ id: uid(), cardId: cu.cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, redemptions: {} });
+        state.benefits.push({ id: uid(), cardId: cu.cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, cycleBasis: b.cycleBasis || 'calendar', redemptions: {} });
       });
       cu.updates.forEach(function(u){
         var b = state.benefits.find(function(x){ return x.id === u.benefitId; });
         if (b) { b.cadence = u.newCadence; b.value = Number(u.newValue)||0; }
       });
+      if (cu.statusesChanged) {
+        var card1 = state.cards.find(function(x){ return x.id === cu.cardId; });
+        if (card1) card1.statuses = cu.newStatuses;
+      }
+      if (cu.multipliersChanged) {
+        var card2 = state.cards.find(function(x){ return x.id === cu.cardId; });
+        if (card2) card2.multipliers = cu.newMultipliers;
+      }
       cu.orphans.forEach(function(o){
         if (!o.keep) {
           state.benefits = state.benefits.filter(function(x){ return x.id !== o.benefitId; });
