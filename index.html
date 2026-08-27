@@ -681,6 +681,10 @@
       <button class="btn btn-ghost" id="cancelImportBtn">Cancel</button>
     </div>
 
+    <div class="section-label">Sync</div>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">If your phone seems out of sync with your partner's, tap this to force a fresh pull from the shared ledger.</div>
+    <button class="btn btn-primary" id="forceRefresh">Refresh from server</button>
+
     <div class="section-label">Build log</div>
     <div class="field">
       <label>Link to the Claude chat this was built/edited in</label>
@@ -825,7 +829,7 @@
 
   // ---- API ----
   function loadData(){
-    return fetch(API).then(function(r){ return r.json(); }).then(function(d){
+    return fetch(API, { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(d){
       state = Object.assign({ people:['Person 1','Person 2'], cards:[], benefits:[], originChatUrl: '' }, d);
       if (!state.originChatUrl) {
         state.originChatUrl = 'https://claude.ai/chat/7939444a-0221-4090-b3c3-3e8348e528aa';
@@ -1333,6 +1337,14 @@
   document.getElementById('closeSettings').addEventListener('click', function(){ settingsBackdrop.className='sheet-backdrop'; });
   settingsBackdrop.addEventListener('click', function(e){ if (e.target===settingsBackdrop) settingsBackdrop.className='sheet-backdrop'; });
 
+  document.getElementById('forceRefresh').addEventListener('click', function(){
+    var btn = document.getElementById('forceRefresh');
+    btn.textContent = 'Refreshing…';
+    loadData().then(function(){
+      btn.textContent = 'Refreshed \u2713';
+      setTimeout(function(){ btn.textContent = 'Refresh from server'; }, 1500);
+    });
+  });
   document.getElementById('saveOriginChat').addEventListener('click', function(){
     state.originChatUrl = document.getElementById('originChatUrl').value.trim();
     saveData().then(render);
