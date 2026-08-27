@@ -11,7 +11,10 @@ exports.handler = async (event) => {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+    'Pragma': 'no-cache',
+    'Expires': '0'
   };
 
   if (event.httpMethod === 'OPTIONS') {
@@ -19,7 +22,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const store = getStore('stubs-data');
+    const store = getStore({ name: 'stubs-data', consistency: 'strong' });
 
     if (event.httpMethod === 'GET') {
       const existing = await store.get('state', { type: 'json' });
