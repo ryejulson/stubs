@@ -40,6 +40,7 @@
   .wrap{ max-width: 520px; margin: 0 auto; padding: 24px 16px 90px; }
 
   .masthead{ display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+  .header-actions{ display:flex; align-items:center; gap:8px; }
   .wordmark{
     font-family:'Space Grotesk', sans-serif;
     font-weight:700;
@@ -65,6 +66,11 @@
     font-size: 18px;
     display:flex; align-items:center; justify-content:center;
     cursor:pointer;
+  }
+  .help-button{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:17px;
+    font-weight:600;
   }
 
   .summary{
@@ -315,6 +321,19 @@
     cursor:pointer;
     padding: 0;
   }
+  .shrug-footer{
+    display:flex;
+    justify-content:center;
+    margin-top:22px;
+  }
+  .shrug-footer .shrug-link{
+    min-height:40px;
+    padding:10px 14px;
+    border:1px solid #2A343A;
+    border-radius:9px;
+    background:var(--bg-2);
+    color:#AAB5AE;
+  }
   @media (max-width: 360px){
     .list-header-row{ flex-wrap:wrap; }
     .list-actions{ width:100%; justify-content:space-between; }
@@ -388,6 +407,30 @@
     color: var(--ink);
     white-space: pre-wrap;
   }
+  .help-intro{
+    margin:-6px 0 16px;
+    color:var(--ink-soft);
+    font-size:13px;
+    line-height:1.55;
+  }
+  .help-section{
+    padding:13px 0;
+    border-top:1px solid #CAD4C8;
+  }
+  .help-section h4{
+    margin:0 0 7px;
+    color:var(--teal);
+    font-family:'Space Grotesk', sans-serif;
+    font-size:14px;
+  }
+  .help-section ul{
+    margin:0;
+    padding-left:19px;
+    color:var(--ink-soft);
+    font-size:12px;
+    line-height:1.55;
+  }
+  .help-section li + li{ margin-top:5px; }
   .empty{
     font-family:'IBM Plex Mono', monospace;
     font-size: 12px;
@@ -527,7 +570,10 @@
         <div class="tagline">shared perk ledger</div>
       </div>
     </div>
-    <button class="gear" id="openSettings">&#9881;</button>
+    <div class="header-actions">
+      <button class="gear help-button" id="openHelp" aria-label="Help">?</button>
+      <button class="gear" id="openSettings" aria-label="Settings">&#9881;</button>
+    </div>
   </div>
 
   <div class="summary">
@@ -550,13 +596,16 @@
         <option value="expiry">Next expiring</option>
         <option value="value">Largest value</option>
       </select>
-      <button class="shrug-link" id="openShrugPile">Shrug pile <span id="shrugCount"></span></button>
     </div>
   </div>
   <div id="stubList"><div class="loading">Loading ledger…</div></div>
 
   <div id="originChatFooter" style="display:none;text-align:center;margin-top:26px;">
     <a id="originChatLink" href="#" target="_blank" rel="noopener" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#7C8880;text-decoration:none;">Built &amp; edited in this Claude chat &#8594;</a>
+  </div>
+
+  <div class="shrug-footer">
+    <button class="shrug-link" id="openShrugPile">Shrug pile <span id="shrugCount"></span></button>
   </div>
 </div>
 
@@ -607,6 +656,72 @@
     <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;">Perks you've swiped away because you don't care about them. They stay off the main list but nothing is deleted.</div>
     <div id="shrugList"></div>
     <button class="btn btn-ghost" id="closeShrugPile">Close</button>
+  </div>
+</div>
+
+<!-- Help sheet -->
+<div class="sheet-backdrop" id="helpBackdrop">
+  <div class="sheet" role="dialog" aria-labelledby="helpTitle">
+    <h3 id="helpTitle">How Stubs works</h3>
+    <div class="help-intro">Stubs keeps your household's credit-card perks in one shared ledger so valuable credits do not quietly expire.</div>
+
+    <div class="help-section">
+      <h4>Understand the dashboard</h4>
+      <ul>
+        <li><strong>Captured this year</strong> is the value you have logged as redeemed.</li>
+        <li><strong>Possible so far</strong> is the total value that has become available during the year.</li>
+        <li>Use the card chips to show every perk or only one card's perks.</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <h4>Find the next opportunity</h4>
+      <ul>
+        <li><strong>Next expiring</strong> puts the earliest current-cycle deadlines first.</li>
+        <li><strong>Largest value</strong> puts the highest-value perks first.</li>
+        <li>Deadlines turn urgent when an unredeemed perk has seven days or fewer remaining.</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <h4>Redeem and edit perks</h4>
+      <ul>
+        <li>Tap a perk to log the amount redeemed and who used it. Partial redemptions are supported.</li>
+        <li>Tap a redeemed perk to undo its current-cycle redemption.</li>
+        <li>Tap the pencil to change its card, name, cadence, value, reset basis, or subscription setting.</li>
+        <li>Tap the gold <strong>+</strong> button to add a new perk.</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <h4>Know the reset cycles</h4>
+      <ul>
+        <li>Perks can reset monthly, quarterly, semi-annually, or annually.</li>
+        <li><strong>H1</strong> means January–June; <strong>H2</strong> means July–December.</li>
+        <li>Calendar perks follow normal calendar periods. Anniversary perks reset from the card's opened date.</li>
+        <li>Subscribed perks are automatically marked redeemed each cycle.</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <h4>Cards, details, and the shrug pile</h4>
+      <ul>
+        <li>Open the top-left menu to view cards and their status, multipliers, notes, and perks.</li>
+        <li>Swipe a perk left to move it out of the main list without deleting it.</li>
+        <li>Open <strong>Shrug pile</strong> at the bottom of the rewards list to restore hidden perks.</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <h4>Settings and shared sync</h4>
+      <ul>
+        <li>The gear manages people, cards, opened dates, card details, and perk-data imports.</li>
+        <li>Changes save to the shared ledger automatically so both phones can see them.</li>
+        <li>If another device looks stale, use <strong>Refresh from server</strong> in Settings.</li>
+      </ul>
+    </div>
+
+    <button class="btn btn-primary" id="closeHelp">Got it</button>
   </div>
 </div>
 
@@ -1185,6 +1300,18 @@
   });
   document.getElementById('closeCardDetail').addEventListener('click', function(){ cardDetailBackdrop.className = 'sheet-backdrop'; });
   cardDetailBackdrop.addEventListener('click', function(e){ if (e.target === cardDetailBackdrop) cardDetailBackdrop.className = 'sheet-backdrop'; });
+
+  // ---- help sheet ----
+  var helpBackdrop = document.getElementById('helpBackdrop');
+  document.getElementById('openHelp').addEventListener('click', function(){
+    helpBackdrop.className = 'sheet-backdrop show';
+  });
+  document.getElementById('closeHelp').addEventListener('click', function(){
+    helpBackdrop.className = 'sheet-backdrop';
+  });
+  helpBackdrop.addEventListener('click', function(e){
+    if (e.target === helpBackdrop) helpBackdrop.className = 'sheet-backdrop';
+  });
 
   // ---- shrug pile sheet ----
   var shrugBackdrop = document.getElementById('shrugBackdrop');
