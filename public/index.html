@@ -233,24 +233,6 @@
   .stub-status.partial{ background: #F2E4B8; color: #8A6A0A; }
   .stub-status.redeemed{ background: var(--teal-soft); color: var(--teal); }
 
-  .stamp{
-    position:absolute;
-    right: 14px;
-    top: 14px;
-    font-family:'Space Grotesk', sans-serif;
-    font-weight:700;
-    font-size: 11px;
-    color: var(--brass);
-    border: 2px solid var(--brass);
-    border-radius: 6px;
-    padding: 3px 8px;
-    transform: rotate(8deg);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    opacity: 0.9;
-    pointer-events:none;
-  }
-
   .statuses-block{
     background: var(--bg-2);
     border: 1px solid #2A343A;
@@ -431,6 +413,46 @@
     line-height:1.55;
   }
   .help-section li + li{ margin-top:5px; }
+  .redemption-log{
+    margin:6px 0 14px;
+    border:1px solid #CAD4C8;
+    border-radius:9px;
+    overflow:hidden;
+  }
+  .redemption-log-empty{
+    padding:13px;
+    color:var(--ink-soft);
+    font-size:12px;
+    text-align:center;
+  }
+  .redemption-entry{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    padding:11px 12px;
+    background:rgba(255,255,255,0.38);
+  }
+  .redemption-entry + .redemption-entry{ border-top:1px solid #CAD4C8; }
+  .redemption-entry-title{
+    color:var(--ink);
+    font-family:'Space Grotesk', sans-serif;
+    font-size:13px;
+    font-weight:600;
+  }
+  .redemption-entry-meta{
+    margin-top:2px;
+    color:var(--ink-soft);
+    font-size:10px;
+    line-height:1.4;
+  }
+  .redemption-entry-cycle{
+    flex:0 0 auto;
+    color:var(--teal);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    text-align:right;
+  }
   .empty{
     font-family:'IBM Plex Mono', monospace;
     font-size: 12px;
@@ -687,7 +709,8 @@
       <h4>Redeem and edit perks</h4>
       <ul>
         <li>Tap a perk to log the amount redeemed and who used it. Partial redemptions are supported.</li>
-        <li>Tap a redeemed perk to undo its current-cycle redemption.</li>
+        <li>The perk screen keeps a permanent redemption log across future cycles.</li>
+        <li>Use <strong>Reset current cycle</strong> there to clear the current status without erasing its history.</li>
         <li>Tap the pencil to change its card, name, cadence, value, reset basis, or subscription setting.</li>
         <li>Tap the gold <strong>+</strong> button to add a new perk.</li>
       </ul>
@@ -728,23 +751,19 @@
 <!-- Redeem sheet -->
 <div class="sheet-backdrop" id="redeemBackdrop">
   <div class="sheet">
-    <h3 id="redeemTitle">Log redemption</h3>
+    <h3 id="redeemTitle">Perk activity</h3>
     <div class="field" id="redeemAlreadyNote" style="display:none;font-size:12px;color:var(--ink-soft);"></div>
-    <div class="field">
-      <label>Amount redeemed just now ($)</label>
-      <input type="number" id="redeemAmount" inputmode="decimal">
+    <div id="redeemForm">
+      <div class="field">
+        <label>Amount redeemed just now ($)</label>
+        <input type="number" id="redeemAmount" inputmode="decimal">
+      </div>
+      <div class="who-row" id="whoRow"></div>
     </div>
-    <div class="who-row" id="whoRow"></div>
-    <button class="btn btn-ghost" id="redeemCancel">Cancel</button>
-  </div>
-</div>
-
-<!-- Undo redeem sheet -->
-<div class="sheet-backdrop" id="undoBackdrop">
-  <div class="sheet">
-    <h3 id="undoTitle">Redeemed</h3>
-    <button class="btn btn-danger" id="undoConfirm">Undo redemption</button>
-    <button class="btn btn-ghost" id="undoCancel">Cancel</button>
+    <button class="btn btn-danger" id="redeemReset" style="display:none;">Reset current cycle</button>
+    <div class="detail-label">Redemption log</div>
+    <div class="redemption-log" id="redemptionLog"></div>
+    <button class="btn btn-ghost" id="redeemCancel">Close</button>
   </div>
 </div>
 
@@ -956,6 +975,68 @@
     return 1;
   }
 
+  // Redemption history is separate from current-cycle status so it survives
+  // resets and future cycle changes.
+  function cycleLabelFromKey(key){
+    var match = String(key || '').match(/^(\d{4})-M(\d{1,2})$/);
+    if (match) return new Date(Number(match[1]), Number(match[2])-1, 1).toLocaleString('en-US', { month:'short', year:'numeric' });
+    match = String(key || '').match(/^(\d{4})-Q([1-4])$/);
+    if (match) return 'Q' + match[2] + ' ' + match[1];
+    match = String(key || '').match(/^(\d{4})-H([12])$/);
+    if (match) return 'H' + match[2] + ' ' + match[1];
+    match = String(key || '').match(/^(\d{4})-Y$/);
+    if (match) return match[1];
+    match = String(key || '').match(/^A-(\d{4}-\d{2}-\d{2})$/);
+    if (match) {
+      var start = new Date(match[1] + 'T00:00:00');
+      return isNaN(start.getTime()) ? key : 'Card cycle from ' + fmtExpiry(start);
+    }
+    return key || 'Past cycle';
+  }
+  function appendRedemptionLog(b, event){
+    if (!Array.isArray(b.redemptionLog)) b.redemptionLog = [];
+    b.redemptionLog.push({
+      id: uid(),
+      type: event.type || 'redeemed',
+      amount: Number(event.amount) || 0,
+      by: event.by || '',
+      date: event.date || new Date().toISOString(),
+      cycleKey: event.cycleKey || '',
+      cycleLabel: event.cycleLabel || cycleLabelFromKey(event.cycleKey),
+      auto: !!event.auto
+    });
+  }
+  function migrateRedemptionLogs(){
+    var changed = false;
+    state.benefits.forEach(function(b){
+      if (!Array.isArray(b.redemptionLog)) {
+        b.redemptionLog = [];
+        changed = true;
+      }
+      Object.keys(b.redemptions || {}).forEach(function(key){
+        var redemption = b.redemptions[key];
+        if (!redemption) return;
+        var alreadyLogged = b.redemptionLog.some(function(entry){
+          return entry.type === 'redeemed' && entry.cycleKey === key;
+        });
+        if (alreadyLogged) return;
+        b.redemptionLog.push({
+          id: uid(),
+          type: 'redeemed',
+          amount: Number(redemption.amount) || 0,
+          by: redemption.by || '',
+          date: redemption.date || null,
+          cycleKey: key,
+          cycleLabel: cycleLabelFromKey(key),
+          auto: !!redemption.auto,
+          migrated: true
+        });
+        changed = true;
+      });
+    });
+    return changed;
+  }
+
   // ---- ongoing subscriptions ----
   // For any benefit marked "autoSubscribed", make sure the current cycle already
   // shows as fully redeemed, so the person never has to log it by hand. Runs once
@@ -967,9 +1048,13 @@
     state.benefits.forEach(function(b){
       if (!b.autoSubscribed) return;
       var info = getCycleInfo(b, now);
+      if (b.autoResetCycles && b.autoResetCycles[info.key]) return;
       if (!b.redemptions) b.redemptions = {};
       if (!b.redemptions[info.key]) {
-        b.redemptions[info.key] = { amount: Number(b.value) || 0, by: 'Auto', date: now.toISOString(), auto: true };
+        var amount = Number(b.value) || 0;
+        var date = now.toISOString();
+        b.redemptions[info.key] = { amount: amount, by: 'Auto', date: date, auto: true };
+        appendRedemptionLog(b, { amount:amount, by:'Auto', date:date, cycleKey:info.key, cycleLabel:info.label, auto:true });
         changed = true;
       }
     });
@@ -989,9 +1074,11 @@
         // person actually does something (redeem, edit, import, etc.).
         state.originChatUrl = 'https://claude.ai/chat/7939444a-0221-4090-b3c3-3e8348e528aa';
       }
+      var historyChanged = migrateRedemptionLogs();
       if (reconcileAutoSubscriptions()) {
-        saveData();
+        historyChanged = true;
       }
+      if (historyChanged) saveData();
       render();
     }).catch(function(){
       document.getElementById('stubList').innerHTML = '<div class="empty">Could not reach the shared ledger. Check your connection and reload.</div>';
@@ -1140,16 +1227,11 @@
             '<div class="stub-cycle' + (isSoon ? ' soon' : '') + '">' + cycleText + '</div>' +
             '<div class="stub-status ' + status + '">' + statusLabel + '</div>' +
           '</div>' +
-        '</div>' +
-        (amount > 0 ? '<div class="stamp">' + escapeHtml(redemption.by) + '</div>' : '');
+        '</div>';
 
       stub.querySelector('.stub-body').addEventListener('click', function(e){
         if (e.target.closest('.stub-edit')) return; // handled separately
-        if (status === 'redeemed') {
-          openUndoSheet(b.id);
-        } else {
-          openRedeemSheet(b.id);
-        }
+        openRedeemSheet(b.id);
       });
       stub.querySelector('.stub-edit').addEventListener('click', function(e){
         e.stopPropagation();
@@ -1377,33 +1459,87 @@
   // ---- redeem sheet ----
   var redeemBackdrop = document.getElementById('redeemBackdrop');
   var whoRow = document.getElementById('whoRow');
+  function formatHistoryDate(value){
+    if (!value) return 'Date unavailable';
+    var date = new Date(value);
+    if (isNaN(date.getTime())) return 'Date unavailable';
+    return date.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  }
+  function renderRedemptionLog(b){
+    var container = document.getElementById('redemptionLog');
+    var entries = Array.isArray(b.redemptionLog) ? b.redemptionLog.slice() : [];
+    entries.sort(function(a, bEntry){
+      return (new Date(bEntry.date || 0).getTime() || 0) - (new Date(a.date || 0).getTime() || 0);
+    });
+    container.innerHTML = '';
+    if (entries.length === 0) {
+      container.innerHTML = '<div class="redemption-log-empty">No redemptions logged yet.</div>';
+      return;
+    }
+    entries.forEach(function(entry){
+      var row = document.createElement('div');
+      row.className = 'redemption-entry';
+
+      var main = document.createElement('div');
+      var title = document.createElement('div');
+      title.className = 'redemption-entry-title';
+      if (entry.type === 'reset') {
+        title.textContent = 'Reset current cycle';
+      } else {
+        title.textContent = (entry.auto ? 'Auto-redeemed ' : 'Redeemed ') + fmtMoney(entry.amount);
+      }
+      var meta = document.createElement('div');
+      meta.className = 'redemption-entry-meta';
+      if (entry.type === 'reset') {
+        meta.textContent = fmtMoney(entry.amount) + ' cleared · ' + formatHistoryDate(entry.date);
+      } else {
+        meta.textContent = (entry.by ? entry.by + ' · ' : '') + formatHistoryDate(entry.date);
+      }
+      main.appendChild(title);
+      main.appendChild(meta);
+
+      var cycle = document.createElement('div');
+      cycle.className = 'redemption-entry-cycle';
+      cycle.textContent = entry.cycleLabel || cycleLabelFromKey(entry.cycleKey);
+
+      row.appendChild(main);
+      row.appendChild(cycle);
+      container.appendChild(row);
+    });
+  }
   function openRedeemSheet(benefitId){
     redeemingBenefitId = benefitId;
     var b = state.benefits.find(function(x){ return x.id === benefitId; });
+    if (!b) return;
     var now = new Date();
     var info = getCycleInfo(b, now);
     var redemption = b.redemptions && b.redemptions[info.key];
     var already = (redemption && Number(redemption.amount)) || 0;
     var remaining = Math.max(0, (Number(b.value)||0) - already);
 
-    document.getElementById('redeemTitle').textContent = 'Log redemption for "' + b.name + '"';
+    document.getElementById('redeemTitle').textContent = b.name;
     var note = document.getElementById('redeemAlreadyNote');
+    note.style.display = 'block';
     if (already > 0) {
-      note.style.display = 'block';
-      note.textContent = fmtMoney(already) + ' of ' + fmtMoney(b.value) + ' already logged this cycle, by ' + redemption.by + '.';
+      note.textContent = fmtMoney(already) + ' of ' + fmtMoney(b.value) + ' logged for ' + info.label + '.';
     } else {
-      note.style.display = 'none';
+      note.textContent = 'Nothing logged yet for ' + info.label + '.';
     }
     document.getElementById('redeemAmount').value = remaining || '';
+    document.getElementById('redeemForm').style.display = remaining > 0 ? 'block' : 'none';
+    document.getElementById('redeemReset').style.display = already > 0 ? 'block' : 'none';
 
     whoRow.innerHTML = '';
-    state.people.forEach(function(p){
-      var btn = document.createElement('button');
-      btn.className = 'who-btn';
-      btn.textContent = p;
-      btn.addEventListener('click', function(){ markRedeemed(benefitId, p); });
-      whoRow.appendChild(btn);
-    });
+    if (remaining > 0) {
+      state.people.forEach(function(p){
+        var btn = document.createElement('button');
+        btn.className = 'who-btn';
+        btn.textContent = p;
+        btn.addEventListener('click', function(){ markRedeemed(benefitId, p); });
+        whoRow.appendChild(btn);
+      });
+    }
+    renderRedemptionLog(b);
     redeemBackdrop.className = 'sheet-backdrop show';
   }
   document.getElementById('redeemCancel').addEventListener('click', function(){
@@ -1418,36 +1554,35 @@
     var now = new Date();
     var info = getCycleInfo(b, now);
     if (!b.redemptions) b.redemptions = {};
+    if (b.autoResetCycles) delete b.autoResetCycles[info.key];
     var existing = b.redemptions[info.key];
     var priorAmount = (existing && Number(existing.amount)) || 0;
-    b.redemptions[info.key] = { amount: priorAmount + justNow, by: who, date: now.toISOString() };
-    redeemBackdrop.className = 'sheet-backdrop';
+    var date = now.toISOString();
+    b.redemptions[info.key] = { amount: priorAmount + justNow, by: who, date: date };
+    appendRedemptionLog(b, { amount:justNow, by:who, date:date, cycleKey:info.key, cycleLabel:info.label });
     saveData().then(render);
     render();
+    openRedeemSheet(benefitId);
   }
 
-  // ---- undo redeem sheet ----
-  var undoBackdrop = document.getElementById('undoBackdrop');
-  var undoingBenefitId = null;
-  function openUndoSheet(benefitId){
-    undoingBenefitId = benefitId;
+  document.getElementById('redeemReset').addEventListener('click', function(){
+    var benefitId = redeemingBenefitId;
     var b = state.benefits.find(function(x){ return x.id === benefitId; });
+    if (!b) return;
     var now = new Date();
     var info = getCycleInfo(b, now);
-    var r = b.redemptions && b.redemptions[info.key];
-    document.getElementById('undoTitle').textContent = r ? (fmtMoney(r.amount) + ' redeemed by ' + r.by) : 'Redeemed';
-    undoBackdrop.className = 'sheet-backdrop show';
-  }
-  document.getElementById('undoCancel').addEventListener('click', function(){ undoBackdrop.className='sheet-backdrop'; });
-  undoBackdrop.addEventListener('click', function(e){ if (e.target===undoBackdrop) undoBackdrop.className='sheet-backdrop'; });
-  document.getElementById('undoConfirm').addEventListener('click', function(){
-    var b = state.benefits.find(function(x){ return x.id === undoingBenefitId; });
-    var now = new Date();
-    var info = getCycleInfo(b, now);
+    var current = b.redemptions && b.redemptions[info.key];
+    var clearedAmount = (current && Number(current.amount)) || 0;
+    if (clearedAmount <= 0) return;
     if (b.redemptions) delete b.redemptions[info.key];
-    undoBackdrop.className = 'sheet-backdrop';
+    if (b.autoSubscribed) {
+      if (!b.autoResetCycles) b.autoResetCycles = {};
+      b.autoResetCycles[info.key] = true;
+    }
+    appendRedemptionLog(b, { type:'reset', amount:clearedAmount, date:now.toISOString(), cycleKey:info.key, cycleLabel:info.label });
     saveData().then(render);
     render();
+    openRedeemSheet(benefitId);
   });
 
   // ---- add/edit benefit sheet ----
@@ -1505,7 +1640,7 @@
       var b = state.benefits.find(function(x){ return x.id === editingBenefitId; });
       b.name = name; b.cardId = cardId; b.cadence = cadence; b.value = value; b.cycleBasis = cycleBasis; b.autoSubscribed = autoSubscribed;
     } else {
-      state.benefits.push({ id: uid(), cardId: cardId, name: name, cadence: cadence, value: value, cycleBasis: cycleBasis, autoSubscribed: autoSubscribed, redemptions: {} });
+      state.benefits.push({ id: uid(), cardId: cardId, name: name, cadence: cadence, value: value, cycleBasis: cycleBasis, autoSubscribed: autoSubscribed, redemptions: {}, redemptionLog: [] });
     }
     reconcileAutoSubscriptions();
     benefitBackdrop.className = 'sheet-backdrop';
@@ -1780,12 +1915,12 @@
       var openedDate = nc.openedDateGiven || newOpenedDates[ncIdx] || null;
       state.cards.push({ id: cardId, name: nc.name, openedDate: openedDate, statuses: nc.statuses || '', multipliers: nc.multipliers || '', notes: nc.notes || '' });
       nc.benefits.forEach(function(b){
-        state.benefits.push({ id: uid(), cardId: cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, cycleBasis: b.cycleBasis || 'calendar', autoSubscribed: !!b.autoSubscribed, redemptions: {} });
+        state.benefits.push({ id: uid(), cardId: cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, cycleBasis: b.cycleBasis || 'calendar', autoSubscribed: !!b.autoSubscribed, redemptions: {}, redemptionLog: [] });
       });
     });
     pendingImportDiff.cardUpdates.forEach(function(cu, cuIdx){
       cu.newPerks.forEach(function(b){
-        state.benefits.push({ id: uid(), cardId: cu.cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, cycleBasis: b.cycleBasis || 'calendar', autoSubscribed: !!b.autoSubscribed, redemptions: {} });
+        state.benefits.push({ id: uid(), cardId: cu.cardId, name: b.name, cadence: b.cadence, value: Number(b.value)||0, cycleBasis: b.cycleBasis || 'calendar', autoSubscribed: !!b.autoSubscribed, redemptions: {}, redemptionLog: [] });
       });
       cu.updates.forEach(function(u){
         var b = state.benefits.find(function(x){ return x.id === u.benefitId; });
