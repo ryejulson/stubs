@@ -434,6 +434,7 @@
     background:rgba(255,255,255,0.38);
   }
   .redemption-entry + .redemption-entry{ border-top:1px solid #CAD4C8; }
+  .redemption-entry-main{ flex:1; min-width:0; }
   .redemption-entry-title{
     color:var(--ink);
     font-family:'Space Grotesk', sans-serif;
@@ -446,12 +447,32 @@
     font-size:10px;
     line-height:1.4;
   }
-  .redemption-entry-cycle{
+  .redemption-entry-note{
+    margin-top:5px;
+    color:var(--ink);
+    font-size:11px;
+    line-height:1.45;
+    white-space:pre-wrap;
+  }
+  .redemption-entry-actions{
     flex:0 0 auto;
+    text-align:right;
+  }
+  .redemption-entry-cycle{
     color:var(--teal);
     font-family:'IBM Plex Mono', monospace;
     font-size:10px;
     text-align:right;
+  }
+  .redemption-entry-edit{
+    margin-top:6px;
+    padding:3px 0 3px 8px;
+    border:0;
+    background:none;
+    color:var(--ink-soft);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    cursor:pointer;
   }
   .empty{
     font-family:'IBM Plex Mono', monospace;
@@ -515,7 +536,7 @@
     margin-bottom: 5px;
     font-weight: 600;
   }
-  .field input, .field select{
+  .field input, .field select, .field textarea{
     width:100%;
     padding: 11px 12px;
     border-radius: 8px;
@@ -525,6 +546,7 @@
     font-family: inherit;
     color: var(--ink);
   }
+  .field textarea{ resize:vertical; }
   .row2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .btn{
     width:100%;
@@ -711,6 +733,7 @@
         <li>Tap a perk to log the amount redeemed and who used it. Partial redemptions are supported.</li>
         <li>The perk screen keeps a permanent redemption log across future cycles.</li>
         <li>Use <strong>Reset current cycle</strong> there to clear the current status without erasing its history.</li>
+        <li>Tap <strong>Edit</strong> beside a log entry to add a note or delete an incorrect entry.</li>
         <li>Tap the pencil to change its card, name, cadence, value, reset basis, or subscription setting.</li>
         <li>Tap the gold <strong>+</strong> button to add a new perk.</li>
       </ul>
@@ -764,6 +787,21 @@
     <div class="detail-label">Redemption log</div>
     <div class="redemption-log" id="redemptionLog"></div>
     <button class="btn btn-ghost" id="redeemCancel">Close</button>
+  </div>
+</div>
+
+<!-- Redemption log editor -->
+<div class="sheet-backdrop" id="logEntryBackdrop">
+  <div class="sheet">
+    <h3>Edit redemption</h3>
+    <div class="field" id="logEntrySummary" style="font-size:12px;color:var(--ink-soft);"></div>
+    <div class="field">
+      <label for="logEntryNote">Note (optional)</label>
+      <textarea id="logEntryNote" rows="4" placeholder="Add a receipt number, what was purchased, or anything else useful."></textarea>
+    </div>
+    <button class="btn btn-primary" id="saveLogEntry">Save note</button>
+    <button class="btn btn-danger" id="deleteLogEntry">Delete log entry</button>
+    <button class="btn btn-ghost" id="cancelLogEntry">Cancel</button>
   </div>
 </div>
 
@@ -1003,7 +1041,9 @@
       date: event.date || new Date().toISOString(),
       cycleKey: event.cycleKey || '',
       cycleLabel: event.cycleLabel || cycleLabelFromKey(event.cycleKey),
-      auto: !!event.auto
+      auto: !!event.auto,
+      note: event.note || '',
+      inactive: !!event.inactive
     });
   }
   function migrateRedemptionLogs(){
@@ -1029,9 +1069,34 @@
           cycleKey: key,
           cycleLabel: cycleLabelFromKey(key),
           auto: !!redemption.auto,
+          note: '',
+          inactive: false,
           migrated: true
         });
         changed = true;
+      });
+    });
+    return changed;
+  }
+  function normalizeRedemptionLogActivity(){
+    var changed = false;
+    state.benefits.forEach(function(b){
+      if (!Array.isArray(b.redemptionLog)) return;
+      var seenRedeemedByCycle = {};
+      b.redemptionLog.forEach(function(entry){
+        var key = entry.cycleKey || '';
+        if (entry.type === 'redeemed') {
+          if (!seenRedeemedByCycle[key]) seenRedeemedByCycle[key] = [];
+          seenRedeemedByCycle[key].push(entry);
+        } else if (entry.type === 'reset') {
+          (seenRedeemedByCycle[key] || []).forEach(function(prior){
+            if (!prior.inactive) {
+              prior.inactive = true;
+              changed = true;
+            }
+          });
+          seenRedeemedByCycle[key] = [];
+        }
       });
     });
     return changed;
@@ -1075,6 +1140,7 @@
         state.originChatUrl = 'https://claude.ai/chat/7939444a-0221-4090-b3c3-3e8348e528aa';
       }
       var historyChanged = migrateRedemptionLogs();
+      if (normalizeRedemptionLogActivity()) historyChanged = true;
       if (reconcileAutoSubscriptions()) {
         historyChanged = true;
       }
@@ -1481,6 +1547,7 @@
       row.className = 'redemption-entry';
 
       var main = document.createElement('div');
+      main.className = 'redemption-entry-main';
       var title = document.createElement('div');
       title.className = 'redemption-entry-title';
       if (entry.type === 'reset') {
@@ -1497,13 +1564,27 @@
       }
       main.appendChild(title);
       main.appendChild(meta);
+      if (entry.note) {
+        var note = document.createElement('div');
+        note.className = 'redemption-entry-note';
+        note.textContent = entry.note;
+        main.appendChild(note);
+      }
 
+      var actions = document.createElement('div');
+      actions.className = 'redemption-entry-actions';
       var cycle = document.createElement('div');
       cycle.className = 'redemption-entry-cycle';
       cycle.textContent = entry.cycleLabel || cycleLabelFromKey(entry.cycleKey);
+      var edit = document.createElement('button');
+      edit.className = 'redemption-entry-edit';
+      edit.textContent = 'Edit';
+      edit.addEventListener('click', function(){ openLogEntryEditor(b.id, entry.id); });
+      actions.appendChild(cycle);
+      actions.appendChild(edit);
 
       row.appendChild(main);
-      row.appendChild(cycle);
+      row.appendChild(actions);
       container.appendChild(row);
     });
   }
@@ -1575,11 +1656,114 @@
     var clearedAmount = (current && Number(current.amount)) || 0;
     if (clearedAmount <= 0) return;
     if (b.redemptions) delete b.redemptions[info.key];
+    (b.redemptionLog || []).forEach(function(entry){
+      if (entry.type === 'redeemed' && entry.cycleKey === info.key) entry.inactive = true;
+    });
     if (b.autoSubscribed) {
       if (!b.autoResetCycles) b.autoResetCycles = {};
       b.autoResetCycles[info.key] = true;
     }
     appendRedemptionLog(b, { type:'reset', amount:clearedAmount, date:now.toISOString(), cycleKey:info.key, cycleLabel:info.label });
+    saveData().then(render);
+    render();
+    openRedeemSheet(benefitId);
+  });
+
+  // ---- redemption log editor ----
+  var logEntryBackdrop = document.getElementById('logEntryBackdrop');
+  var editingLogBenefitId = null;
+  var editingLogEntryId = null;
+  function getEditingLogEntry(){
+    var benefit = state.benefits.find(function(x){ return x.id === editingLogBenefitId; });
+    var entry = benefit && (benefit.redemptionLog || []).find(function(x){ return x.id === editingLogEntryId; });
+    return { benefit:benefit, entry:entry };
+  }
+  function openLogEntryEditor(benefitId, entryId){
+    editingLogBenefitId = benefitId;
+    editingLogEntryId = entryId;
+    var found = getEditingLogEntry();
+    if (!found.benefit || !found.entry) return;
+    var entry = found.entry;
+    var parts = [];
+    if (entry.type === 'reset') {
+      parts.push('Reset ' + fmtMoney(entry.amount));
+    } else {
+      parts.push('Redeemed ' + fmtMoney(entry.amount));
+      if (entry.by) parts.push(entry.by);
+    }
+    parts.push(entry.cycleLabel || cycleLabelFromKey(entry.cycleKey));
+    parts.push(formatHistoryDate(entry.date));
+    document.getElementById('logEntrySummary').textContent = parts.join(' · ');
+    document.getElementById('logEntryNote').value = entry.note || '';
+    logEntryBackdrop.className = 'sheet-backdrop show';
+  }
+  function closeLogEntryEditor(){
+    logEntryBackdrop.className = 'sheet-backdrop';
+    editingLogBenefitId = null;
+    editingLogEntryId = null;
+  }
+  document.getElementById('cancelLogEntry').addEventListener('click', closeLogEntryEditor);
+  logEntryBackdrop.addEventListener('click', function(e){
+    if (e.target === logEntryBackdrop) closeLogEntryEditor();
+  });
+  document.getElementById('saveLogEntry').addEventListener('click', function(){
+    var found = getEditingLogEntry();
+    if (!found.benefit || !found.entry) return;
+    var benefitId = found.benefit.id;
+    found.entry.note = document.getElementById('logEntryNote').value.trim();
+    closeLogEntryEditor();
+    saveData().then(render);
+    render();
+    openRedeemSheet(benefitId);
+  });
+  function deleteRedemptionLogEntry(b, entry){
+    var entryIndex = b.redemptionLog.findIndex(function(x){ return x.id === entry.id; });
+    if (entryIndex < 0) return false;
+    var isActiveRedemption = entry.type === 'redeemed' && !entry.inactive;
+    if (isActiveRedemption) {
+      var current = b.redemptions && b.redemptions[entry.cycleKey];
+      if (current) {
+        var nextAmount = Math.max(0, (Number(current.amount) || 0) - (Number(entry.amount) || 0));
+        if (nextAmount <= 0) {
+          delete b.redemptions[entry.cycleKey];
+          var currentInfo = getCycleInfo(b, new Date());
+          if (b.autoSubscribed && currentInfo.key === entry.cycleKey) {
+            if (!b.autoResetCycles) b.autoResetCycles = {};
+            b.autoResetCycles[entry.cycleKey] = true;
+          }
+        } else {
+          var remaining = b.redemptionLog.filter(function(x, index){
+            return index !== entryIndex && x.type === 'redeemed' && !x.inactive && x.cycleKey === entry.cycleKey;
+          });
+          remaining.sort(function(a, bEntry){
+            return (new Date(a.date || 0).getTime() || 0) - (new Date(bEntry.date || 0).getTime() || 0);
+          });
+          var latest = remaining[remaining.length - 1];
+          b.redemptions[entry.cycleKey] = {
+            amount: nextAmount,
+            by: latest ? latest.by : current.by,
+            date: latest ? latest.date : current.date,
+            auto: remaining.length > 0 && remaining.every(function(x){ return x.auto; })
+          };
+        }
+      }
+    }
+    b.redemptionLog.splice(entryIndex, 1);
+    return true;
+  }
+  document.getElementById('deleteLogEntry').addEventListener('click', function(){
+    var found = getEditingLogEntry();
+    if (!found.benefit || !found.entry) return;
+    var b = found.benefit;
+    var entry = found.entry;
+    var isActiveRedemption = entry.type === 'redeemed' && !entry.inactive;
+    var message = isActiveRedemption
+      ? 'Delete this redemption? Its amount will also be removed from that cycle total.'
+      : 'Delete this log entry? This cannot be undone.';
+    if (!confirm(message)) return;
+    if (!deleteRedemptionLogEntry(b, entry)) return;
+    var benefitId = b.id;
+    closeLogEntryEditor();
     saveData().then(render);
     render();
     openRedeemSheet(benefitId);
