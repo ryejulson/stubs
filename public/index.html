@@ -282,9 +282,28 @@
     display:flex;
     justify-content:space-between;
     align-items:center;
+    gap: 10px;
     margin: 22px 0 10px 2px;
   }
   .list-header-row .section-label{ margin: 0; }
+  .list-actions{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:8px;
+    margin-left:auto;
+  }
+  .sort-select{
+    max-width:132px;
+    padding:7px 8px;
+    border:1px solid #C7D0C4;
+    border-radius:7px;
+    background:#fff;
+    color:var(--ink-soft);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    cursor:pointer;
+  }
   .shrug-link{
     background:none;
     border:none;
@@ -295,6 +314,10 @@
     color: #7C8880;
     cursor:pointer;
     padding: 0;
+  }
+  @media (max-width: 360px){
+    .list-header-row{ flex-wrap:wrap; }
+    .list-actions{ width:100%; justify-content:space-between; }
   }
 
   .stub-swipe-wrap{
@@ -522,7 +545,13 @@
 
   <div class="list-header-row">
     <div class="section-label" id="listLabel">All perks</div>
-    <button class="shrug-link" id="openShrugPile">Shrug pile <span id="shrugCount"></span></button>
+    <div class="list-actions">
+      <select class="sort-select" id="benefitSort" aria-label="Sort perks">
+        <option value="expiry">Next expiring</option>
+        <option value="value">Largest value</option>
+      </select>
+      <button class="shrug-link" id="openShrugPile">Shrug pile <span id="shrugCount"></span></button>
+    </div>
   </div>
   <div id="stubList"><div class="loading">Loading ledger…</div></div>
 
@@ -701,6 +730,11 @@
   var API = '/.netlify/functions/data';
   var state = { people:['Person 1','Person 2'], cards:[], benefits:[] };
   var activeCardFilter = 'all';
+  var benefitSort = 'expiry';
+  try {
+    var savedSort = localStorage.getItem('stubs_benefit_sort_v1');
+    if (savedSort === 'expiry' || savedSort === 'value') benefitSort = savedSort;
+  } catch(e) {}
   var editingBenefitId = null;
   var redeemingBenefitId = null;
 
@@ -933,6 +967,17 @@
       if (b.discarded) return false;
       return activeCardFilter === 'all' || b.cardId === activeCardFilter;
     });
+    benefits.sort(function(a, b){
+      var aEnd = getCycleInfo(a, now).endDate.getTime();
+      var bEnd = getCycleInfo(b, now).endDate.getTime();
+      var aValue = Number(a.value) || 0;
+      var bValue = Number(b.value) || 0;
+      var primary = benefitSort === 'value' ? (bValue - aValue) : (aEnd - bEnd);
+      if (primary !== 0) return primary;
+      var secondary = benefitSort === 'value' ? (aEnd - bEnd) : (bValue - aValue);
+      if (secondary !== 0) return secondary;
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
     label.textContent = activeCardFilter === 'all' ? 'All perks' : cardName(activeCardFilter) + ' perks';
 
     if (state.cards.length === 0) {
@@ -1002,6 +1047,14 @@
       listEl.appendChild(wrap);
     });
   }
+
+  var benefitSortEl = document.getElementById('benefitSort');
+  benefitSortEl.value = benefitSort;
+  benefitSortEl.addEventListener('change', function(){
+    benefitSort = benefitSortEl.value;
+    try { localStorage.setItem('stubs_benefit_sort_v1', benefitSort); } catch(e) {}
+    renderList();
+  });
 
   // ---- swipe-to-discard ("shrug pile") ----
   function attachSwipeToDiscard(stubEl, wrapEl, benefitId){
