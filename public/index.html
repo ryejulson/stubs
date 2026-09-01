@@ -645,7 +645,7 @@
   <div id="stubList"><div class="loading">Loading ledger…</div></div>
 
   <div id="originChatFooter" style="display:none;text-align:center;margin-top:26px;">
-    <a id="originChatLink" href="#" target="_blank" rel="noopener" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#7C8880;text-decoration:none;">Built &amp; edited in this Claude chat &#8594;</a>
+    <a id="originChatLink" href="#" target="_blank" rel="noopener" style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#7C8880;text-decoration:none;">Built &amp; edited in this ChatGPT chat &#8594;</a>
   </div>
 
   <div class="shrug-footer">
@@ -871,7 +871,7 @@
     <div class="section-label">Import perk data</div>
     <div id="importPasteView">
       <div class="field">
-        <label>Paste JSON from Claude</label>
+        <label>Paste JSON from ChatGPT</label>
         <textarea id="importText" rows="6" style="width:100%;padding:11px 12px;border-radius:8px;border:1.5px solid #C7D0C4;font-family:'IBM Plex Mono',monospace;font-size:12px;"></textarea>
       </div>
       <button class="btn btn-primary" id="previewImportBtn">Preview import</button>
@@ -888,8 +888,8 @@
 
     <div class="section-label">Build log</div>
     <div class="field">
-      <label>Link to the Claude chat this was built/edited in</label>
-      <input type="url" id="originChatUrl" placeholder="https://claude.ai/chat/...">
+      <label>Link to the ChatGPT chat this was built/edited in</label>
+      <input type="url" id="originChatUrl" placeholder="https://chatgpt.com/c/...">
     </div>
     <button class="btn btn-primary" id="saveOriginChat">Save link</button>
 
@@ -900,6 +900,7 @@
 <script>
 (function(){
   var API = '/.netlify/functions/data';
+  var CURRENT_BUILD_CHAT_URL = 'https://chatgpt.com/c/6a970af5-bc88-83ea-af91-a52d69ac4027';
   var state = { people:['Person 1','Person 2'], cards:[], benefits:[] };
   var activeCardFilter = 'all';
   var benefitSort = 'expiry';
@@ -1133,13 +1134,12 @@
       return r.json();
     }).then(function(d){
       state = Object.assign({ people:['Person 1','Person 2'], cards:[], benefits:[], originChatUrl: '' }, d);
-      if (!state.originChatUrl) {
-        // Set in memory only — do NOT auto-save here. A page load should never
-        // trigger a write; it'll get persisted naturally the next time the
-        // person actually does something (redeem, edit, import, etc.).
-        state.originChatUrl = 'https://claude.ai/chat/7939444a-0221-4090-b3c3-3e8348e528aa';
+      var historyChanged = false;
+      if (!state.originChatUrl || /^https?:\/\/(?:www\.)?claude\.ai\//i.test(state.originChatUrl)) {
+        state.originChatUrl = CURRENT_BUILD_CHAT_URL;
+        historyChanged = true;
       }
-      var historyChanged = migrateRedemptionLogs();
+      if (migrateRedemptionLogs()) historyChanged = true;
       if (normalizeRedemptionLogActivity()) historyChanged = true;
       if (reconcileAutoSubscriptions()) {
         historyChanged = true;
