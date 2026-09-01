@@ -2,7 +2,13 @@
   "name": "stubs-benefits-tracker",
   "version": "1.0.0",
   "private": true,
-  "dependencies": {
-    "@netlify/blobs": "^8.1.0"
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "wrangler deploy --dry-run --outdir .wrangler/dry-run"
+  },
+  "devDependencies": {
+    "wrangler": "4.128.0"
   }
 }
