@@ -30,6 +30,7 @@ function defaultCgWeek(date) {
     sideDishes: [],
     notes: '',
     noGroup: false,
+    noGroupReason: '',
     updatedAt: null
   };
 }
@@ -58,6 +59,7 @@ function normalizeCgWeek(date, raw) {
     sideDishes: Array.isArray(raw.sideDishes) ? raw.sideDishes.map(normalizeDish).filter(Boolean) : [],
     notes: typeof raw.notes === 'string' ? raw.notes.slice(0, 3000) : '',
     noGroup: !!raw.noGroup,
+    noGroupReason: typeof raw.noGroupReason === 'string' ? raw.noGroupReason.slice(0, 500) : '',
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : null
   };
 }
@@ -144,6 +146,7 @@ async function handleCgSchedule(request, env) {
     }
     if (Object.prototype.hasOwnProperty.call(fields, 'notes')) current.notes = typeof fields.notes === 'string' ? fields.notes.slice(0, 3000) : '';
     if (Object.prototype.hasOwnProperty.call(fields, 'noGroup')) current.noGroup = !!fields.noGroup;
+    if (Object.prototype.hasOwnProperty.call(fields, 'noGroupReason')) current.noGroupReason = typeof fields.noGroupReason === 'string' ? fields.noGroupReason.slice(0, 500) : '';
 
     const ops = Array.isArray(incoming?.dishOps) ? incoming.dishOps.slice(0, 100) : [];
     for (const op of ops) {
