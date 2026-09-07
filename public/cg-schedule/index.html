@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f6f1e8" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>CG Schedule</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f1e8;
+      --surface: #fffdf8;
+      --surface-2: #f2eadf;
+      --ink: #28251f;
+      --muted: #736d63;
+      --line: #ded5c8;
+      --accent: #4e6951;
+      --accent-2: #e2eadf;
+      --warn: #936d2c;
+      --warn-bg: #fbf2dc;
+      --danger: #9b4039;
+      --danger-bg: #fae9e6;
+      --shadow: 0 10px 30px rgba(54, 45, 34, .08);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.4;
+    }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: default; opacity: .55; }
+    .shell { width: min(760px, 100%); margin: 0 auto; padding: 22px 16px 56px; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; }
+    .brand h1 { margin:0; font-size:30px; letter-spacing:-.04em; }
+    .brand p { margin:3px 0 0; color:var(--muted); font-size:14px; }
+    .icon-btn {
+      width:42px; height:42px; border-radius:50%; border:1px solid var(--line);
+      background:var(--surface); color:var(--ink); display:grid; place-items:center;
+      box-shadow: 0 3px 12px rgba(54,45,34,.05);
+    }
+    .status-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; min-height:24px; }
+    .household-chip { color:var(--muted); font-size:13px; }
+    .sync-status { color:var(--muted); font-size:12px; text-align:right; }
+    .sync-status.error { color:var(--danger); }
+
+    .section-label {
+      margin: 22px 2px 10px; color:var(--muted); font-size:12px; font-weight:800;
+      text-transform:uppercase; letter-spacing:.12em;
+    }
+    .week-list { display:grid; gap:12px; }
+    .week-card {
+      border:1px solid var(--line); border-radius:var(--radius); background:var(--surface);
+      box-shadow: var(--shadow); overflow:hidden;
+    }
+    .week-card.next { border-color:#bccbb9; }
+    .week-main { padding:17px; }
+    .week-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .week-date { font-size:21px; font-weight:800; letter-spacing:-.02em; }
+    .week-date small { display:block; color:var(--muted); font-size:13px; font-weight:650; letter-spacing:0; margin-top:2px; }
+    .badge { display:inline-flex; align-items:center; border-radius:999px; padding:5px 8px; font-size:10px; font-weight:850; letter-spacing:.08em; text-transform:uppercase; background:var(--accent-2); color:var(--accent); white-space:nowrap; }
+    .no-group { margin-top:13px; border-radius:14px; padding:12px 13px; background:var(--surface-2); font-weight:800; }
+    .summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+    .summary-item { background:#faf7f1; border:1px solid #e8e0d4; border-radius:14px; padding:10px 11px; min-width:0; }
+    .summary-item span { display:block; color:var(--muted); font-size:11px; font-weight:750; text-transform:uppercase; letter-spacing:.07em; margin-bottom:2px; }
+    .summary-item strong { display:block; font-size:14px; overflow-wrap:anywhere; }
+    .missing { display:flex; flex-wrap:wrap; gap:7px; margin-top:12px; }
+    .need { border-radius:999px; padding:5px 9px; background:var(--warn-bg); color:var(--warn); font-size:12px; font-weight:750; }
+    .details { margin-top:15px; display:grid; gap:13px; }
+    .detail-group h3 { margin:0 0 6px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; }
+    .dish-line { display:flex; justify-content:space-between; gap:12px; padding:5px 0; border-bottom:1px dashed #e8dfd2; }
+    .dish-line:last-child { border-bottom:0; }
+    .dish-name { font-weight:700; }
+    .dish-owner { color:var(--muted); font-size:13px; white-space:nowrap; }
+    .notes-preview { color:#514c44; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .empty-line { color:var(--muted); font-size:13px; }
+    .card-action { width:100%; padding:12px 16px; border:0; border-top:1px solid var(--line); background:#fbf8f2; color:var(--accent); font-weight:800; }
+
+    .past-toggle { width:100%; border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:14px; padding:11px 14px; font-weight:750; }
+
+    .overlay { position:fixed; inset:0; z-index:30; display:none; align-items:flex-end; justify-content:center; background:rgba(37,32,27,.42); padding:0; }
+    .overlay.open { display:flex; }
+    .sheet { width:min(760px,100%); max-height:92dvh; overflow:auto; background:var(--surface); border-radius:24px 24px 0 0; box-shadow:0 -15px 45px rgba(36,31,25,.18); }
+    .sheet-head { position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px 12px; background:rgba(255,253,248,.96); border-bottom:1px solid var(--line); backdrop-filter:blur(10px); }
+    .sheet-title { font-weight:850; font-size:19px; }
+    .close-btn { border:0; background:transparent; color:var(--muted); font-size:26px; line-height:1; padding:4px 7px; }
+    .sheet-body { padding:18px 18px calc(28px + env(safe-area-inset-bottom)); }
+    .field { margin-bottom:17px; }
+    .field label, .field-label { display:block; font-size:12px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:7px; }
+    input[type="text"], input[type="time"], textarea {
+      width:100%; border:1px solid var(--line); border-radius:13px; background:white; color:var(--ink); padding:12px 13px; outline:none;
+    }
+    input:focus, textarea:focus { border-color:#9eb29c; box-shadow:0 0 0 3px rgba(78,105,81,.12); }
+    textarea { min-height:110px; resize:vertical; }
+    .toggle-row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0 17px; border-bottom:1px solid var(--line); margin-bottom:17px; }
+    .toggle-copy strong { display:block; }
+    .toggle-copy span { color:var(--muted); font-size:12px; }
+    .switch { position:relative; width:50px; height:29px; flex:0 0 auto; }
+    .switch input { opacity:0; width:0; height:0; }
+    .slider { position:absolute; inset:0; border-radius:999px; background:#cfc8bd; transition:.18s ease; }
+    .slider:before { content:""; position:absolute; width:23px; height:23px; left:3px; top:3px; border-radius:50%; background:white; box-shadow:0 1px 5px rgba(0,0,0,.18); transition:.18s ease; }
+    .switch input:checked + .slider { background:var(--accent); }
+    .switch input:checked + .slider:before { transform:translateX(21px); }
+    .hidden-fields { display:none; }
+    .no-group-note { display:none; margin-bottom:18px; padding:12px 13px; border-radius:13px; background:var(--surface-2); color:var(--muted); font-size:13px; }
+    .no-group-note.show { display:block; }
+
+    .dish-section { margin:20px 0; }
+    .dish-section-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:9px; }
+    .dish-section-head h3 { margin:0; font-size:17px; }
+    .small-btn { border:1px solid #bdccba; background:var(--accent-2); color:var(--accent); border-radius:11px; padding:7px 10px; font-weight:800; font-size:13px; }
+    .dish-editor { display:grid; gap:8px; }
+    .dish-edit-row { border:1px solid var(--line); border-radius:13px; padding:10px; background:#fff; }
+    .dish-edit-top { display:flex; gap:8px; align-items:center; }
+    .dish-edit-top input { flex:1; min-width:0; }
+    .delete-btn { border:0; background:var(--danger-bg); color:var(--danger); border-radius:10px; padding:10px 11px; font-weight:800; }
+    .dish-meta { margin-top:5px; color:var(--muted); font-size:12px; }
+    .add-row { display:flex; gap:8px; margin-top:9px; }
+    .add-row input { flex:1; min-width:0; }
+    .add-row button { border:0; border-radius:11px; background:var(--accent); color:white; padding:0 15px; font-weight:800; }
+    .save-btn { width:100%; border:0; border-radius:14px; padding:14px 16px; background:var(--accent); color:white; font-weight:850; font-size:16px; margin-top:8px; }
+
+    .first-run { align-items:center; padding:18px; }
+    .first-card { width:min(430px,100%); background:var(--surface); border-radius:22px; padding:22px; box-shadow:0 22px 70px rgba(28,24,19,.22); }
+    .first-card h2 { margin:0 0 8px; font-size:24px; letter-spacing:-.03em; }
+    .first-card p { margin:0 0 16px; color:var(--muted); }
+    .first-card button { width:100%; margin-top:10px; border:0; border-radius:13px; background:var(--accent); color:#fff; padding:13px 14px; font-weight:850; }
+    .error-box { display:none; margin:0 0 12px; border-radius:12px; padding:10px 12px; background:var(--danger-bg); color:var(--danger); font-size:13px; }
+    .error-box.show { display:block; }
+    .loading { padding:50px 16px; text-align:center; color:var(--muted); }
+
+    @media (min-width: 700px) {
+      .shell { padding-top:34px; }
+      .sheet { margin-bottom:24px; border-radius:24px; max-height:88vh; }
+      .overlay { align-items:center; padding:24px; }
+      .first-run { align-items:center; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <h1>CG Schedule</h1>
+        <p>Sunday small group · 2026</p>
+      </div>
+      <button class="icon-btn" id="settingsBtn" aria-label="Change household" title="Change household">⚙</button>
+    </div>
+    <div class="status-row">
+      <div class="household-chip" id="householdChip"></div>
+      <div class="sync-status" id="syncStatus">Loading…</div>
+    </div>
+    <div id="app"><div class="loading">Loading schedule…</div></div>
+  </main>
+
+  <div class="overlay first-run" id="householdOverlay" role="dialog" aria-modal="true" aria-labelledby="householdQuestion">
+    <div class="first-card">
+      <h2 id="householdQuestion">What household are you (ie. Julson)?</h2>
+      <p>Your answer is remembered on this device and automatically attached to dishes you add.</p>
+      <div class="error-box" id="householdError">Enter a household name to continue.</div>
+      <input type="text" id="householdInput" autocomplete="name" maxlength="60" placeholder="Julson" />
+      <button id="saveHouseholdBtn">Continue</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="editOverlay" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <div class="sheet">
+      <div class="sheet-head">
+        <div class="sheet-title" id="editTitle">Edit Sunday</div>
+        <button class="close-btn" id="closeEditBtn" aria-label="Close">×</button>
+      </div>
+      <div class="sheet-body">
+        <div class="error-box" id="editError"></div>
+        <div class="toggle-row">
+          <div class="toggle-copy">
+            <strong>No Small Group</strong>
+            <span>Existing details are preserved and return if this is turned back off.</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="noGroupInput" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="no-group-note" id="noGroupNote">This Sunday will display as “No Small Group.” The location, time, dishes, and notes below are being preserved.</div>
+        <div id="editFields">
+          <div class="field">
+            <label for="locationInput">Location</label>
+            <input type="text" id="locationInput" maxlength="140" placeholder="Enter location" />
+          </div>
+          <div class="field">
+            <label for="timeInput">Time</label>
+            <input type="time" id="timeInput" />
+          </div>
+
+          <section class="dish-section">
+            <div class="dish-section-head"><h3>Main dishes</h3></div>
+            <div class="dish-editor" id="mainDishEditor"></div>
+            <div class="add-row">
+              <input type="text" id="newMainDish" maxlength="100" placeholder="Add main dish" />
+              <button type="button" data-add="main">Add</button>
+            </div>
+          </section>
+
+          <section class="dish-section">
+            <div class="dish-section-head"><h3>Side dishes</h3></div>
+            <div class="dish-editor" id="sideDishEditor"></div>
+            <div class="add-row">
+              <input type="text" id="newSideDish" maxlength="100" placeholder="Add side dish" />
+              <button type="button" data-add="side">Add</button>
+            </div>
+          </section>
+
+          <div class="field">
+            <label for="notesInput">Notes</label>
+            <textarea id="notesInput" maxlength="3000" placeholder="Anything the group should know…"></textarea>
+          </div>
+        </div>
+        <button class="save-btn" id="saveWeekBtn">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/cg-schedule';
+    const HOUSEHOLD_KEY = 'cgScheduleHousehold';
+    const SUNDAY_DATES = [
+      '2026-09-13','2026-09-20','2026-09-27','2026-10-04','2026-10-11','2026-10-18','2026-10-25',
+      '2026-11-01','2026-11-08','2026-11-15','2026-11-22','2026-11-29','2026-12-06','2026-12-13','2026-12-20','2026-12-27'
+    ];
+
+    let schedule = {};
+    let household = localStorage.getItem(HOUSEHOLD_KEY) || '';
+    let editingDate = null;
+    let originalWeek = null;
+    let draftWeek = null;
+    let pastOpen = false;
+
+    const $ = (id) => document.getElementById(id);
+    const clone = (obj) => JSON.parse(JSON.stringify(obj));
+    const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+
+    function escapeHtml(value = '') {
+      return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    }
+
+    function localToday() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function prettyDate(date) {
+      return new Intl.DateTimeFormat(undefined, { weekday:'long', month:'long', day:'numeric' })
+        .format(new Date(`${date}T12:00:00`));
+    }
+
+    function shortDate(date) {
+      return new Intl.DateTimeFormat(undefined, { month:'short', day:'numeric' })
+        .format(new Date(`${date}T12:00:00`));
+    }
+
+    function prettyTime(time) {
+      const [h, m] = (time || '17:00').split(':').map(Number);
+      return new Intl.DateTimeFormat(undefined, { hour:'numeric', minute:'2-digit' })
+        .format(new Date(2026,0,1,h,m));
+    }
+
+    function defaultWeek(date) {
+      return { date, location:'', time:'17:00', mainDishes:[], sideDishes:[], notes:'', noGroup:false, updatedAt:null };
+    }
+
+    function normalizeWeek(date, raw = {}) {
+      const base = defaultWeek(date);
+      return {
+        ...base,
+        ...raw,
+        date,
+        mainDishes: Array.isArray(raw.mainDishes) ? raw.mainDishes : [],
+        sideDishes: Array.isArray(raw.sideDishes) ? raw.sideDishes : []
+      };
+    }
+
+    function setSync(text, isError=false) {
+      $('syncStatus').textContent = text;
+      $('syncStatus').classList.toggle('error', isError);
+    }
+
+    function updateHouseholdChip() {
+      $('householdChip').textContent = household ? `Adding dishes as ${household}` : '';
+    }
+
+    function showHouseholdPrompt() {
+      $('householdInput').value = household;
+      $('householdError').classList.remove('show');
+      $('householdOverlay').classList.add('open');
+      setTimeout(() => $('householdInput').focus(), 50);
+    }
+
+    function saveHousehold() {
+      const value = $('householdInput').value.trim();
+      if (!value) {
+        $('householdError').classList.add('show');
+        return;
+      }
+      household = value;
+      localStorage.setItem(HOUSEHOLD_KEY, household);
+      updateHouseholdChip();
+      $('householdOverlay').classList.remove('open');
+    }
+
+    async function loadSchedule({silent=false} = {}) {
+      if (!silent) setSync('Loading…');
+      try {
+        const response = await fetch(API, { cache:'no-store' });
+        if (!response.ok) throw new Error(`Could not load schedule (${response.status})`);
+        const data = await response.json();
+        schedule = {};
+        SUNDAY_DATES.forEach(date => schedule[date] = normalizeWeek(date, data.weeks?.[date]));
+        render();
+        setSync(`Updated ${new Intl.DateTimeFormat(undefined,{hour:'numeric',minute:'2-digit'}).format(new Date())}`);
+      } catch (err) {
+        setSync('Could not sync', true);
+        if (!silent) $('app').innerHTML = `<div class="week-card"><div class="week-main"><strong>Could not load the schedule.</strong><div class="empty-line" style="margin-top:6px">${escapeHtml(err.message)}</div><button class="small-btn" style="margin-top:12px" onclick="loadSchedule()">Try again</button></div></div>`;
+      }
+    }
+
+    function firstUpcomingDate() {
+      const today = localToday();
+      return SUNDAY_DATES.find(d => d >= today) || null;
+    }
+
+    function renderDishPreview(dishes) {
+      if (!dishes.length) return '<div class="empty-line">None yet</div>';
+      return dishes.map(d => `<div class="dish-line"><span class="dish-name">${escapeHtml(d.name)}</span><span class="dish-owner">${escapeHtml(d.household || '')}</span></div>`).join('');
+    }
+
+    function cardHtml(week, isNext, compact=false) {
+      const missing = [];
+      if (!week.location.trim()) missing.push('Location needed');
+      if (!week.mainDishes.length) missing.push('Main dish needed');
+      const badge = isNext ? '<span class="badge">This Sunday</span>' : '';
+      const dateTitle = isNext ? prettyDate(week.date) : shortDate(week.date);
+      let body = '';
+
+      if (week.noGroup) {
+        body = '<div class="no-group">No Small Group</div>';
+      } else {
+        body = `
+          <div class="summary-grid">
+            <div class="summary-item"><span>Time</span><strong>${escapeHtml(prettyTime(week.time))}</strong></div>
+            <div class="summary-item"><span>Location</span><strong>${escapeHtml(week.location || 'TBD')}</strong></div>
+          </div>
+          ${missing.length ? `<div class="missing">${missing.map(m => `<span class="need">${escapeHtml(m)}</span>`).join('')}</div>` : ''}
+          ${compact ? '' : `<div class="details">
+            <div class="detail-group"><h3>Main dishes</h3>${renderDishPreview(week.mainDishes)}</div>
+            <div class="detail-group"><h3>Side dishes</h3>${renderDishPreview(week.sideDishes)}</div>
+            ${week.notes ? `<div class="detail-group"><h3>Notes</h3><div class="notes-preview">${escapeHtml(week.notes)}</div></div>` : ''}
+          </div>`}
+        `;
+      }
+
+      return `<article class="week-card ${isNext ? 'next' : ''}">
+        <div class="week-main">
+          <div class="week-head"><div class="week-date">${escapeHtml(dateTitle)}${isNext ? '' : `<small>Sunday</small>`}</div>${badge}</div>
+          ${body}
+        </div>
+        <button class="card-action" data-edit-date="${week.date}">${compact ? 'View / edit' : 'Edit Sunday'}</button>
+      </article>`;
+    }
+
+    function render() {
+      const today = localToday();
+      const next = firstUpcomingDate();
+      const past = SUNDAY_DATES.filter(d => d < today);
+      const future = SUNDAY_DATES.filter(d => d >= today);
+      let html = '';
+
+      if (next) {
+        html += `<div class="section-label">Next meeting</div><div class="week-list">${cardHtml(schedule[next], true, false)}</div>`;
+      }
+
+      const later = future.filter(d => d !== next);
+      if (later.length) {
+        html += `<div class="section-label">Coming up</div><div class="week-list">${later.map(d => cardHtml(schedule[d], false, true)).join('')}</div>`;
+      }
+
+      if (past.length) {
+        html += `<div class="section-label">Past Sundays</div><button class="past-toggle" id="pastToggle">${pastOpen ? 'Hide' : 'Show'} ${past.length} past ${past.length === 1 ? 'Sunday' : 'Sundays'}</button>`;
+        if (pastOpen) html += `<div class="week-list" style="margin-top:10px">${past.slice().reverse().map(d => cardHtml(schedule[d], false, true)).join('')}</div>`;
+      }
+
+      if (!next && !past.length) html = '<div class="loading">No Sundays configured.</div>';
+      $('app').innerHTML = html;
+
+      document.querySelectorAll('[data-edit-date]').forEach(btn => btn.addEventListener('click', () => openEdit(btn.dataset.editDate)));
+      $('pastToggle')?.addEventListener('click', () => { pastOpen = !pastOpen; render(); });
+    }
+
+    function openEdit(date) {
+      editingDate = date;
+      originalWeek = clone(schedule[date] || defaultWeek(date));
+      draftWeek = clone(originalWeek);
+      $('editTitle').textContent = `Edit ${prettyDate(date)}`;
+      $('editError').classList.remove('show');
+      populateEditForm();
+      $('editOverlay').classList.add('open');
+    }
+
+    function populateEditForm() {
+      $('noGroupInput').checked = !!draftWeek.noGroup;
+      $('locationInput').value = draftWeek.location || '';
+      $('timeInput').value = draftWeek.time || '17:00';
+      $('notesInput').value = draftWeek.notes || '';
+      toggleNoGroupFields();
+      renderDishEditors();
+    }
+
+    function toggleNoGroupFields() {
+      const off = $('noGroupInput').checked;
+      $('editFields').classList.toggle('hidden-fields', off);
+      $('noGroupNote').classList.toggle('show', off);
+    }
+
+    function renderDishEditors() {
+      renderDishEditor('main', draftWeek.mainDishes, $('mainDishEditor'));
+      renderDishEditor('side', draftWeek.sideDishes, $('sideDishEditor'));
+    }
+
+    function renderDishEditor(section, dishes, el) {
+      if (!dishes.length) {
+        el.innerHTML = '<div class="empty-line">None yet</div>';
+        return;
+      }
+      el.innerHTML = dishes.map(d => `
+        <div class="dish-edit-row">
+          <div class="dish-edit-top">
+            <input type="text" maxlength="100" value="${escapeHtml(d.name)}" data-dish-name="${escapeHtml(d.id)}" data-section="${section}" aria-label="Dish name" />
+            <button type="button" class="delete-btn" data-delete-dish="${escapeHtml(d.id)}" data-section="${section}">Delete</button>
+          </div>
+          <div class="dish-meta">${escapeHtml(d.household || '')}</div>
+        </div>`).join('');
+
+      el.querySelectorAll('[data-dish-name]').forEach(input => input.addEventListener('input', () => {
+        const list = input.dataset.section === 'main' ? draftWeek.mainDishes : draftWeek.sideDishes;
+        const dish = list.find(x => x.id === input.dataset.dishName);
+        if (dish) dish.name = input.value;
+      }));
+      el.querySelectorAll('[data-delete-dish]').forEach(btn => btn.addEventListener('click', () => {
+        const key = btn.dataset.section === 'main' ? 'mainDishes' : 'sideDishes';
+        draftWeek[key] = draftWeek[key].filter(x => x.id !== btn.dataset.deleteDish);
+        renderDishEditors();
+      }));
+    }
+
+    function addDish(section) {
+      const input = section === 'main' ? $('newMainDish') : $('newSideDish');
+      const name = input.value.trim();
+      if (!name) return;
+      const key = section === 'main' ? 'mainDishes' : 'sideDishes';
+      draftWeek[key].push({ id:uid(), name, household });
+      input.value = '';
+      renderDishEditors();
+      input.focus();
+    }
+
+    function syncDraftFields() {
+      draftWeek.noGroup = $('noGroupInput').checked;
+      draftWeek.location = $('locationInput').value.trim();
+      draftWeek.time = $('timeInput').value || '17:00';
+      draftWeek.notes = $('notesInput').value.trim();
+    }
+
+    function diffDishes(oldList, newList, section) {
+      const ops = [];
+      const oldById = new Map(oldList.map(d => [d.id, d]));
+      const newById = new Map(newList.map(d => [d.id, d]));
+      oldList.forEach(oldDish => {
+        if (!newById.has(oldDish.id)) ops.push({ type:'delete', section, id:oldDish.id });
+      });
+      newList.forEach(newDish => {
+        const oldDish = oldById.get(newDish.id);
+        if (!oldDish) ops.push({ type:'add', section, dish:newDish });
+        else if ((oldDish.name || '') !== (newDish.name || '')) ops.push({ type:'update', section, id:newDish.id, name:newDish.name });
+      });
+      return ops;
+    }
+
+    function buildPatch() {
+      const fields = {};
+      ['location','time','notes','noGroup'].forEach(k => {
+        if (draftWeek[k] !== originalWeek[k]) fields[k] = draftWeek[k];
+      });
+      return {
+        date: editingDate,
+        fields,
+        dishOps: [
+          ...diffDishes(originalWeek.mainDishes, draftWeek.mainDishes, 'main'),
+          ...diffDishes(originalWeek.sideDishes, draftWeek.sideDishes, 'side')
+        ]
+      };
+    }
+
+    async function saveWeek() {
+      syncDraftFields();
+      const patch = buildPatch();
+      const invalidDish = [...draftWeek.mainDishes, ...draftWeek.sideDishes].find(d => !d.name.trim());
+      if (invalidDish) {
+        showEditError('Dish names cannot be blank. Delete the empty dish or enter a name.');
+        return;
+      }
+      $('saveWeekBtn').disabled = true;
+      $('saveWeekBtn').textContent = 'Saving…';
+      try {
+        const response = await fetch(API, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(patch)
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || `Could not save (${response.status})`);
+        schedule[editingDate] = normalizeWeek(editingDate, result.week);
+        $('editOverlay').classList.remove('open');
+        render();
+        setSync('Saved just now');
+        loadSchedule({silent:true});
+      } catch (err) {
+        showEditError(err.message || 'Could not save changes.');
+      } finally {
+        $('saveWeekBtn').disabled = false;
+        $('saveWeekBtn').textContent = 'Save changes';
+      }
+    }
+
+    function showEditError(message) {
+      $('editError').textContent = message;
+      $('editError').classList.add('show');
+      $('editError').scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+
+    $('saveHouseholdBtn').addEventListener('click', saveHousehold);
+    $('householdInput').addEventListener('keydown', e => { if (e.key === 'Enter') saveHousehold(); });
+    $('settingsBtn').addEventListener('click', showHouseholdPrompt);
+    $('closeEditBtn').addEventListener('click', () => $('editOverlay').classList.remove('open'));
+    $('editOverlay').addEventListener('click', e => { if (e.target === $('editOverlay')) $('editOverlay').classList.remove('open'); });
+    $('noGroupInput').addEventListener('change', toggleNoGroupFields);
+    document.querySelectorAll('[data-add]').forEach(btn => btn.addEventListener('click', () => addDish(btn.dataset.add)));
+    $('newMainDish').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addDish('main'); } });
+    $('newSideDish').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addDish('side'); } });
+    $('saveWeekBtn').addEventListener('click', saveWeek);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !$('editOverlay').classList.contains('open')) loadSchedule({silent:true}); });
+    window.addEventListener('focus', () => { if (!$('editOverlay').classList.contains('open')) loadSchedule({silent:true}); });
+
+    updateHouseholdChip();
+    if (!household) showHouseholdPrompt();
+    loadSchedule();
+  </script>
+</body>
+</html>
