@@ -44,7 +44,7 @@ function normalizeDish(raw) {
   const id = cleanString(raw.id, 100);
   const name = cleanString(raw.name, 100);
   const household = cleanString(raw.household, 60);
-  if (!id || !name || !household) return null;
+  if (!id || !name) return null;
   return { id, name, household };
 }
 
@@ -156,7 +156,7 @@ async function handleCgSchedule(request, env) {
 
       if (op.type === 'add') {
         const dish = normalizeDish(op.dish);
-        if (!dish) return json({ error: 'Dish name and household are required' }, 400);
+        if (!dish) return json({ error: 'Dish name is required' }, 400);
         if (!list.some(existing => existing.id === dish.id)) list.push(dish);
       } else if (op.type === 'update') {
         const id = cleanString(op.id, 100);
@@ -164,6 +164,14 @@ async function handleCgSchedule(request, env) {
         if (!id || !name) return json({ error: 'Dish name cannot be blank' }, 400);
         const dish = list.find(existing => existing.id === id);
         if (dish) dish.name = name;
+      } else if (op.type === 'claim') {
+        const id = cleanString(op.id, 100);
+        const household = cleanString(op.household, 60);
+        if (!id || !household) return json({ error: 'Household is required to claim a dish' }, 400);
+        const dish = list.find(existing => existing.id === id);
+        if (!dish) return json({ error: 'Dish no longer exists' }, 404);
+        if (dish.household) return json({ error: `${dish.name} has already been claimed by ${dish.household}.` }, 409);
+        dish.household = household;
       } else if (op.type === 'delete') {
         const id = cleanString(op.id, 100);
         const index = list.findIndex(existing => existing.id === id);
