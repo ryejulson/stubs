@@ -24,6 +24,7 @@ function json(body, status = 200) {
 function defaultCgWeek(date) {
   return {
     date,
+    title: '',
     location: '',
     time: '17:00',
     mainDishes: [],
@@ -53,6 +54,7 @@ function normalizeCgWeek(date, raw) {
   if (!raw || typeof raw !== 'object') return base;
   return {
     date,
+    title: cleanString(raw.title, 100),
     location: cleanString(raw.location, 140),
     time: /^\d{2}:\d{2}$/.test(raw.time || '') ? raw.time : '17:00',
     mainDishes: Array.isArray(raw.mainDishes) ? raw.mainDishes.map(normalizeDish).filter(Boolean) : [],
@@ -139,6 +141,7 @@ async function handleCgSchedule(request, env) {
     const current = normalizeCgWeek(date, await env.STUBS_DATA.get(key, { type: 'json' }));
     const fields = incoming?.fields && typeof incoming.fields === 'object' ? incoming.fields : {};
 
+    if (Object.prototype.hasOwnProperty.call(fields, 'title')) current.title = cleanString(fields.title, 100);
     if (Object.prototype.hasOwnProperty.call(fields, 'location')) current.location = cleanString(fields.location, 140);
     if (Object.prototype.hasOwnProperty.call(fields, 'time')) {
       if (!/^\d{2}:\d{2}$/.test(fields.time || '')) return json({ error: 'Invalid time' }, 400);
